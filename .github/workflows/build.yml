@@ -19,7 +19,7 @@ jobs:
 
       - name: Decode Keystore
         id: decode_keystore
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: timheuer/base64-to-file@v1.2
         with:
           fileName: ${{ vars.RELEASE_KEYSTORE }}
@@ -27,7 +27,7 @@ jobs:
           encodedString: ${{ secrets.KEYSTORE }}
 
       - name: Generate keystore.properties
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         run: |
           if [ -n "${{ secrets.RELEASEKEYPASSWORD }}" ]; then
             echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
@@ -43,16 +43,23 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/4.0-dev' }}
 
       - name: Build with Gradle
-        run: ./gradlew assembleRelease
+        run: |
+          if [ -n "${{ secrets.KEYSTORE }}" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
 
       - name: Read Output Metadata
         id: read_output_metadata
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: juliangruber/read-file-action@v1
         with:
           path: ./app/build/outputs/apk/release/output-metadata.json
           trim: true
 
       - name: Upload Release Package
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         env:
           version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
           version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
@@ -62,13 +69,14 @@ jobs:
           path: ./app/build/outputs/apk/release
 
       - name: Upload Mapping
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: mapping
           path: ./app/build/outputs/mapping/release
 
       - name: Post to channel
-        if: contains(github.event.head_commit.message, '[skip post]') == false && github.event_name != 'pull_request'
+        if: contains(github.event.head_commit.message, '[skip post]') == false && (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != ''
         env:
           CHANNEL_ID: ${{ secrets.CHANNEL_DEV_ID }}
           BOT_TOKEN: ${{ secrets.BOT_DEV_TOKEN }}
@@ -89,11 +97,11 @@ jobs:
           fi
 
       - name: Install App Center CLI
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         run: npm install -g appcenter-cli
 
       - name: Upload Mapping to App Center
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         env:
           version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
           version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
