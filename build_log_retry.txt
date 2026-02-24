@@ -1,0 +1,41 @@
+Configuration on demand is an incubating feature.
+  _____                  _     _____                            _
+ / ____|                | |   |  __ \                          | |
+| (_____      _____  ___| |_  | |  | | ___ _ __   ___ _ __   __| | ___ _ __   ___ _   _
+ \___ \ \ /\ / / _ \/ _ \ __| | |  | |/ _ \ '_ \ / _ \ '_ \ / _` |/ _ \ '_ \ / __| | | |
+ ____) \ V  V /  __/  __/ |_  | |__| |  __/ |_) |  __/ | | | (_| |  __/ | | | (__| |_| |
+|_____/ \_/\_/ \___|\___|\__| |_____/ \___| .__/ \___|_| |_|\__,_|\___|_| |_|\___|\__, |
+                                          | |                                      __/ |
+                                          |_|                                     |___/
+[SweetDependency] 💪 SweetDependency help you autowired 95 dependencies (plugins: 9, libraries: 86)
+[38;5;10m[SweetProperty] ⬆️ Plugin update is available, the current version is 1.0.5, please update to 1.0.8
+You can modify your plugin version in your project's settings.gradle or settings.gradle.kts
+plugins {
+    id("com.highcapable.sweetproperty") version "1.0.8"
+    ...
+}
+For more information, you can visit https://github.com/HighCapable/SweetProperty[0m
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+A problem occurred configuring root project 'TiebaLite'.
+> java.util.concurrent.ExecutionException: org.gradle.api.GradleException: Failed to create Jar file /home/jules/.gradle/caches/jars-9/aecae5dd645b6353a9cf6a1a6d3b6dc4/dependencies-accessors-1.0.4.jar.
+> Failed to notify project evaluation listener.
+   > [SweetDependency] The project initialization could not be completed, please check the following for errors
+     If you need help, visit https://github.com/HighCapable/SweetDependency
+     * What went wrong:
+     Generated class "com.highcapable.sweetdependency.plugin.extension.accessors.generated.LibrariesAccessors$AndroidxAccessors" not found, stop loading root project 'TiebaLite'
+     Please check whether the initialization process is interrupted and re-run Gradle Sync
+     If this doesn't work, please manually delete the entire "/app/.gradle/sweet-dependency/dependencies-accessors" directory
+   > [SweetProperty] Generated class "com.highcapable.sweetproperty.plugin.extension.accessors.generated.GlobalPropertiesAccessors" not found, stop loading root project 'TiebaLite'
+     Please check whether the initialization process is interrupted and re-run Gradle Sync
+     If this doesn't work, please manually delete the entire "/app/.gradle/sweet-property/properties-accessors" directory
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2s

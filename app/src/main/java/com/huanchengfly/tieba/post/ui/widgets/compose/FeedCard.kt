@@ -135,7 +135,8 @@ private fun UserHeader(
                     context = LocalContext.current,
                     username = user.get { name },
                     nickname = user.get { nameShow },
-                    color = LocalContentColor.current
+                    color = LocalContentColor.current,
+                    sex = user.get { sex }
                 ),
                 color = ExtendedTheme.colors.text
             )
@@ -162,6 +163,7 @@ fun UserHeader(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     timeProvider: (() -> Int)? = null,
+    sexProvider: () -> Int = { 0 },
     content: @Composable RowScope.() -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -169,6 +171,7 @@ fun UserHeader(
     val nameShow = remember(nameShowProvider) { nameShowProvider() }
     val portrait = remember(portraitProvider) { portraitProvider() }
     val time = remember(timeProvider) { timeProvider?.invoke() }
+    val sex = remember(sexProvider) { sexProvider() }
     UserHeader(
         avatar = {
             Avatar(
@@ -183,7 +186,8 @@ fun UserHeader(
                     context = LocalContext.current,
                     username = name,
                     nickname = nameShow,
-                    color = LocalContentColor.current
+                    color = LocalContentColor.current,
+                    sex = sex
                 ),
                 color = ExtendedTheme.colors.text
             )

@@ -19,7 +19,7 @@ jobs:
 
       - name: Decode Keystore
         id: decode_keystore
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: timheuer/base64-to-file@v1.2
         with:
           fileName: ${{ vars.RELEASE_KEYSTORE }}
@@ -27,7 +27,7 @@ jobs:
           encodedString: ${{ secrets.KEYSTORE }}
 
       - name: Generate keystore.properties
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         run: |
           if [ -n "${{ secrets.RELEASEKEYPASSWORD }}" ]; then
             echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
@@ -43,16 +43,23 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/4.0-dev' }}
 
       - name: Build with Gradle
-        run: ./gradlew assembleRelease
+        run: |
+          if [ -n "${{ secrets.KEYSTORE }}" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
 
       - name: Read Output Metadata
         id: read_output_metadata
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: juliangruber/read-file-action@v1
         with:
           path: ./app/build/outputs/apk/release/output-metadata.json
           trim: true
 
       - name: Upload Release Package
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         env:
           version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
           version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
@@ -62,13 +69,14 @@ jobs:
           path: ./app/build/outputs/apk/release
 
       - name: Upload Mapping
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: mapping
           path: ./app/build/outputs/mapping/release
 
       - name: Post to channel
-        if: contains(github.event.head_commit.message, '[skip post]') == false && github.event_name != 'pull_request'
+        if: contains(github.event.head_commit.message, '[skip post]') == false && (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != ''
         env:
           CHANNEL_ID: ${{ secrets.CHANNEL_DEV_ID }}
           BOT_TOKEN: ${{ secrets.BOT_DEV_TOKEN }}
@@ -88,12 +96,20 @@ jobs:
             curl -v "https://api.telegram.org/bot${BOT_TOKEN}/sendMediaGroup?chat_id=${CHANNEL_ID}&media=%5B%7B%22type%22%3A%22document%22%2C%22media%22%3A%22attach%3A%2F%2Frelease%22%2C%22parse_mode%22%3A%22MarkdownV2%22%2C%22caption%22%3A${ESCAPED}%7D%5D&reply_markup=%7B%22inline_keyboard%22%3A%20%5B%5B%7B%22text%22%3A%20%22%E5%9C%A8+Github+%E4%B8%8A%E6%9F%A5%E7%9C%8B%22%2C%20%22url%22%3A%20${ACTION_URL}%7D%5D%5D%7D" -F release="@$RELEASE"
           fi
 
+      - name: Install App Center CLI
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
+        run: npm install -g appcenter-cli
+
       - name: Upload Mapping to App Center
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         env:
           version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
           version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
-        uses: saurav-aggarwal/appcenter-cli-action@1.0.1
-        with:
-          token: ${{ secrets.APP_CENTER_TOKEN }}
-          command: appcenter crashes upload-mappings -c ${{ env.version_code }} -n ${{ env.version_name }} -m ./app/build/outputs/mapping/release/mapping.txt -a ${{ secrets.APP_CENTER_APP }}
+          APP_CENTER_TOKEN: ${{ secrets.APP_CENTER_TOKEN }}
+        run: |
+          appcenter crashes upload-mappings \
+            --token $APP_CENTER_TOKEN \
+            --app ${{ secrets.APP_CENTER_APP }} \
+            --version-code $version_code \
+            --version-name $version_name \
+            --mapping ./app/build/outputs/mapping/release/mapping.txt

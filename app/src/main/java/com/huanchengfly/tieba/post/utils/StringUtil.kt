@@ -99,7 +99,8 @@ object StringUtil {
         context: Context,
         username: String,
         nickname: String?,
-        color: Color = Color.Unspecified
+        color: Color = Color.Unspecified,
+        sex: Int = 0
     ): AnnotatedString {
         val showBoth = App.isInitialized && context.appPreferences.showBothUsernameAndNickname
         return buildAnnotatedString {
@@ -110,6 +111,16 @@ object StringUtil {
                 }
             } else {
                 append(nickname ?: username)
+            }
+
+            if (sex == 1) {
+                withStyle(SpanStyle(color = Color.Blue)) {
+                    append(" ♂")
+                }
+            } else if (sex == 2) {
+                withStyle(SpanStyle(color = Color.Red)) {
+                    append(" ♀")
+                }
             }
         }
     }
