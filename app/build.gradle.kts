@@ -38,7 +38,7 @@ android {
     buildToolsVersion = "34.0.0"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.huanchengfly.tieba.post"
+        applicationId = "xyz.liop.tieba.pos"
         minSdk = 21
         //noinspection OldTargetApi
         targetSdk = 34
