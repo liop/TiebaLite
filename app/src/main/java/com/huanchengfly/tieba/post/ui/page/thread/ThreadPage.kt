@@ -1859,7 +1859,8 @@ fun PostCard(
                                     userName = StringUtil.getUsernameAnnotatedString(
                                         LocalContext.current,
                                         author.name,
-                                        author.nameShow
+                                        author.nameShow,
+                                        sex = author.sex
                                     ),
                                     userLevel = author.level_id,
                                     isLz = author.id == threadAuthorId,

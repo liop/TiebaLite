@@ -1,0 +1,15 @@
+Configuration on demand is an incubating feature.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+java.util.concurrent.ExecutionException: org.gradle.api.GradleException: Failed to create Jar file /home/jules/.gradle/caches/jars-9/64bb4cda8c57771fd4094bb3575e950e/sweet-property-1.0.8.jar.
+> org.gradle.api.GradleException: Failed to create Jar file /home/jules/.gradle/caches/jars-9/64bb4cda8c57771fd4094bb3575e950e/sweet-property-1.0.8.jar.
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 2s

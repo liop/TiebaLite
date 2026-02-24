@@ -641,7 +641,8 @@ private fun SubPostItem(
                                     userName = StringUtil.getUsernameAnnotatedString(
                                         LocalContext.current,
                                         author.get { name },
-                                        author.get { nameShow }
+                                        author.get { nameShow },
+                                        sex = author.get { sex }
                                     ),
                                     userLevel = author.get { level_id },
                                     isLz = author.get { id } == threadAuthorId,
