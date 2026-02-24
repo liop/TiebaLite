@@ -19,7 +19,7 @@ jobs:
 
       - name: Decode Keystore
         id: decode_keystore
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         uses: timheuer/base64-to-file@v1.2
         with:
           fileName: ${{ vars.RELEASE_KEYSTORE }}
@@ -27,7 +27,7 @@ jobs:
           encodedString: ${{ secrets.KEYSTORE }}
 
       - name: Generate keystore.properties
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.KEYSTORE != '' }}
         run: |
           if [ -n "${{ secrets.RELEASEKEYPASSWORD }}" ]; then
             echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
@@ -45,20 +45,24 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleRelease
 
-      - name: Read Output Metadata
-        id: read_output_metadata
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ./app/build/outputs/apk/release/output-metadata.json
-          trim: true
+      - name: Get Output Metadata
+        id: get_metadata
+        run: |
+          METADATA_FILE="./app/build/outputs/apk/release/output-metadata.json"
+          if [ -f "$METADATA_FILE" ]; then
+            VERSION_CODE=$(jq -r '.elements[0].versionCode' $METADATA_FILE)
+            VERSION_NAME=$(jq -r '.elements[0].versionName' $METADATA_FILE)
+            echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+            echo "VERSION_NAME=$VERSION_NAME" >> $GITHUB_ENV
+          else
+            echo "Metadata file not found!"
+          fi
 
       - name: Upload Release Package
-        env:
-          version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
-          version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
+        if: env.VERSION_CODE != ''
         uses: actions/upload-artifact@v4
         with:
-          name: "release-${{ env.version_name }}(${{ env.version_code }})"
+          name: "release-${{ env.VERSION_NAME }}(${{ env.VERSION_CODE }})"
           path: ./app/build/outputs/apk/release
 
       - name: Upload Mapping
@@ -68,7 +72,7 @@ jobs:
           path: ./app/build/outputs/mapping/release
 
       - name: Post to channel
-        if: contains(github.event.head_commit.message, '[skip post]') == false && github.event_name != 'pull_request'
+        if: contains(github.event.head_commit.message, '[skip post]') == false && github.event_name != 'pull_request' && env.VERSION_CODE != ''
         env:
           CHANNEL_ID: ${{ secrets.CHANNEL_DEV_ID }}
           BOT_TOKEN: ${{ secrets.BOT_DEV_TOKEN }}
@@ -89,11 +93,9 @@ jobs:
           fi
 
       - name: Upload Mapping to App Center
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && env.VERSION_CODE != '' }}
         env:
-          version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
-          version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
           APP_CENTER_TOKEN: ${{ secrets.APP_CENTER_TOKEN }}
         run: |
           npm install -g appcenter-cli
-          appcenter crashes upload-mappings --token "$APP_CENTER_TOKEN" -c ${{ env.version_code }} -n ${{ env.version_name }} -m ./app/build/outputs/mapping/release/mapping.txt -a ${{ secrets.APP_CENTER_APP }}
+          appcenter crashes upload-mappings --token "$APP_CENTER_TOKEN" -c ${{ env.VERSION_CODE }} -n ${{ env.VERSION_NAME }} -m ./app/build/outputs/mapping/release/mapping.txt -a ${{ secrets.APP_CENTER_APP }}
