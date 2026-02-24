@@ -11,17 +11,18 @@ import android.widget.CompoundButton
 import android.widget.LinearLayout
 import androidx.annotation.ColorInt
 import androidx.appcompat.app.AlertDialog
-import com.huanchengfly.tieba.post.BaseApplication.ThemeDelegate.getColorByAttr
+import androidx.fragment.app.FragmentActivity
+import com.huanchengfly.tieba.post.App.ThemeDelegate.getColorByAttr
 import com.huanchengfly.tieba.post.R
-import com.huanchengfly.tieba.post.ui.theme.utils.ThemeUtils
+import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
 import com.huanchengfly.tieba.post.utils.ThemeUtil
 import com.huanchengfly.tieba.post.utils.appPreferences
-import com.jrummyapps.android.colorpicker.ColorPickerDialog
-import com.jrummyapps.android.colorpicker.ColorPickerDialogListener
-import java.util.*
+import com.jaredrummler.android.colorpicker.ColorPickerDialog
+import com.jaredrummler.android.colorpicker.ColorPickerDialogListener
 
 class CustomThemeDialog(context: Context) : AlertDialog(context),
-        View.OnClickListener, DialogInterface.OnClickListener, CompoundButton.OnCheckedChangeListener, ColorPickerDialogListener {
+    View.OnClickListener, DialogInterface.OnClickListener, CompoundButton.OnCheckedChangeListener,
+    ColorPickerDialogListener {
     private var primaryColorLayout: LinearLayout? = null
     private var primaryColorView: View? = null
     private var statusBarFont: CheckBox? = null
@@ -44,7 +45,7 @@ class CustomThemeDialog(context: Context) : AlertDialog(context),
         setView(contentView)
         primaryColor = getColorByAttr(context, R.attr.colorPrimary, ThemeUtil.THEME_CUSTOM)
         statusBarFontDark = context.appPreferences.customStatusBarFontDark
-        toolbarPrimary = context.appPreferences.customToolbarPrimaryColor
+        toolbarPrimary = context.appPreferences.toolbarPrimaryColor
         refreshView()
     }
 
@@ -59,15 +60,22 @@ class CustomThemeDialog(context: Context) : AlertDialog(context),
     override fun onClick(v: View) {
         if (v.id == R.id.custom_theme_primary_holder) {
             val primaryColorPicker = ColorPickerDialog.newBuilder()
-                    .setDialogTitle(R.string.title_color_picker_primary)
-                    .setDialogType(ColorPickerDialog.TYPE_PRESETS)
-                    .setShowAlphaSlider(false)
-                    .setDialogId(0)
-                    .setAllowPresets(true)
-                    .setColor(primaryColor)
-                    .create()
+                .setDialogTitle(R.string.title_color_picker_primary)
+                .setDialogType(ColorPickerDialog.TYPE_PRESETS)
+                .setShowAlphaSlider(false)
+                .setDialogId(0)
+                .setAllowPresets(true)
+                .setColor(primaryColor)
+                .create()
             primaryColorPicker.setColorPickerDialogListener(this)
-            primaryColorPicker.show(Objects.requireNonNull(ThemeUtils.getWrapperActivity(context)).fragmentManager, "ColorPicker_PrimaryColor")
+            val activity = ThemeUtils.getWrapperActivity(context)
+            if (activity is FragmentActivity) {
+                primaryColorPicker.show(
+                    activity.supportFragmentManager,
+                    "ColorPicker_PrimaryColor"
+                )
+                return
+            }
         }
         refreshView()
     }
@@ -77,7 +85,7 @@ class CustomThemeDialog(context: Context) : AlertDialog(context),
         context.appPreferences.apply {
             customPrimaryColor = toString(primaryColor)
             customStatusBarFontDark = (statusBarFontDark || !toolbarPrimary)
-            customToolbarPrimaryColor = toolbarPrimary
+            toolbarPrimaryColor = toolbarPrimary
         }
         dialog.dismiss()
     }
@@ -125,7 +133,12 @@ class CustomThemeDialog(context: Context) : AlertDialog(context),
         }
 
         fun toString(@ColorInt color: Int): String {
-            return toString(Color.alpha(color), Color.red(color), Color.green(color), Color.blue(color))
+            return toString(
+                Color.alpha(color),
+                Color.red(color),
+                Color.green(color),
+                Color.blue(color)
+            )
         }
     }
 
