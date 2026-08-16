@@ -1,15 +1,25 @@
 package com.huanchengfly.tieba.post.api
 
-import com.huanchengfly.tieba.post.BaseApplication
-import com.huanchengfly.tieba.post.BaseApplication.ScreenInfo
-import com.huanchengfly.tieba.post.utils.StatusBarUtil
-import java.util.*
+import android.os.Build
+import com.huanchengfly.tieba.post.App
+import com.huanchengfly.tieba.post.App.ScreenInfo
 
-fun getLanguage(): String {
-    val locale = Locale.getDefault()
-    return "${locale.language}-${locale.country}"
+
+private val defaultUserAgent: String =
+    "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}; ${Build.MODEL} Build/TKQ1.220829.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/109.0.5414.86 Mobile Safari/537.36"
+
+fun getUserAgent(appendString: String? = null): String {
+    val append = " ${appendString?.trim()}".takeIf { !appendString.isNullOrEmpty() }.orEmpty()
+    return "${App.Config.userAgent ?: defaultUserAgent}$append"
 }
 
-fun getScreenHeight(): Int = ScreenInfo.EXACT_SCREEN_HEIGHT - StatusBarUtil.getStatusBarHeight(BaseApplication.instance)
+fun getCookie(vararg cookies: Pair<String, () -> String?>): String {
+    return cookies.map { it.first to it.second() }.filterNot { it.second.isNullOrEmpty() }
+        .joinToString("; ") { "${it.first}:${it.second}" }
+}
+
+fun getScreenHeight(): Int = ScreenInfo.EXACT_SCREEN_HEIGHT
 
 fun getScreenWidth(): Int = ScreenInfo.EXACT_SCREEN_WIDTH
+
+fun Boolean.booleanToString(): String = if (this) "1" else "0"

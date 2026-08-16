@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.StringDef;
 
-import com.huanchengfly.tieba.post.BaseApplication;
+import com.huanchengfly.tieba.post.App;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -17,9 +17,10 @@ public class SharedPreferencesUtil {
     public static final String SP_PERMISSION = "permission";
     public static final String SP_IGNORE_VERSIONS = "ignore_version";
     public static final String SP_WEBVIEW_INFO = "webview_info";
+    public static final String SP_PLUGINS = "plugins";
 
     public static SharedPreferences get(@Preferences String name) {
-        return get(BaseApplication.getInstance(), name);
+        return get(App.getINSTANCE(), name);
     }
 
     public static SharedPreferences get(Context context, @Preferences String name) {
@@ -50,7 +51,7 @@ public class SharedPreferencesUtil {
         return put(get(context, preference), key, value);
     }
 
-    @StringDef({SP_APP_DATA, SP_IGNORE_VERSIONS, SP_PERMISSION, SP_SETTINGS, SP_WEBVIEW_INFO, SP_DRAFT})
+    @StringDef({SP_APP_DATA, SP_IGNORE_VERSIONS, SP_PERMISSION, SP_WEBVIEW_INFO, SP_DRAFT, SP_PLUGINS})
     @Retention(RetentionPolicy.SOURCE)
     public @interface Preferences {
     }

@@ -1,189 +1,259 @@
 package com.huanchengfly.tieba.post.services
 
-import android.annotation.SuppressLint
+import android.Manifest
 import android.app.IntentService
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.os.Handler
+import android.content.pm.PackageManager
+import android.util.Log
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
-import com.huanchengfly.tieba.post.ui.theme.utils.ThemeUtils
-import com.huanchengfly.tieba.post.api.TiebaApi
-import com.huanchengfly.tieba.post.api.interfaces.CommonCallback
-import com.huanchengfly.tieba.post.api.models.ForumRecommend
-import com.huanchengfly.tieba.post.api.models.SignResultBean
-import com.huanchengfly.tieba.post.api.retrofit.exception.TiebaException
-import com.huanchengfly.tieba.post.activities.MainActivity
+import androidx.core.app.NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.ServiceCompat
 import com.huanchengfly.tieba.post.R
-import com.huanchengfly.tieba.post.activities.LoginActivity
-import com.huanchengfly.tieba.post.models.MyInfoBean
+import com.huanchengfly.tieba.post.api.models.SignResultBean
 import com.huanchengfly.tieba.post.models.SignDataBean
+import com.huanchengfly.tieba.post.pendingIntentFlagImmutable
+import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
 import com.huanchengfly.tieba.post.utils.AccountUtil
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import java.util.*
-import java.util.concurrent.ThreadLocalRandom
+import com.huanchengfly.tieba.post.utils.ProgressListener
+import com.huanchengfly.tieba.post.utils.SingleAccountSigner
+import com.huanchengfly.tieba.post.utils.extension.addFlag
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import kotlin.coroutines.CoroutineContext
 
-class OKSignService : IntentService(TAG) {
-    private val signData: MutableList<SignDataBean> = ArrayList()
-    private var position = 0
-    lateinit var manager: NotificationManager
+class OKSignService : IntentService(TAG), CoroutineScope, ProgressListener {
+    private var job: Job = Job()
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Main + job
 
-    override fun onCreate() {
-        super.onCreate()
-        manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        updateNotification("正在获取吧列表", "请稍后...", 100, 0, true)
-        startForeground(9, NotificationCompat.Builder(this, "1")
-                .setContentTitle(getString(R.string.title_oksign))
-                .setContentText(getString(R.string.tip_oksign_running))
-                .setSmallIcon(R.drawable.ic_oksign)
-                .setWhen(System.currentTimeMillis())
-                .build())
+    private var lastSignData: SignDataBean? = null
+
+    private val notificationManager: NotificationManagerCompat by lazy {
+        NotificationManagerCompat.from(this)
     }
 
-    private fun startSign() {
-        if (signData.size > 0) {
-            position = 0
-            sign(signData[position])
-            updateNotification("即将开始签到", null, 100, 100, true)
-            Toast.makeText(this@OKSignService, "签到已开始，可在通知栏查看进度", Toast.LENGTH_SHORT).show()
-        } else {
-            updateNotification("签到完成", "没有可签到的吧", Intent(this, MainActivity::class.java))
-            stopForeground(true)
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "onStartCommand")
+        if (intent?.action == ACTION_START_SIGN) {
+            startForeground(
+                NOTIFICATION_ID,
+                buildNotification(
+                    getString(R.string.title_loading_data),
+                    getString(R.string.text_please_wait)
+                ).build()
+            )
         }
-    }
-
-    private fun buildNotification(title: String, text: String?): NotificationCompat.Builder {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel("1",
-                    "一键签到", NotificationManager.IMPORTANCE_LOW)
-            channel.enableLights(false)
-            channel.setShowBadge(false)
-            manager.createNotificationChannel(channel)
-        }
-        return NotificationCompat.Builder(this, "1")
-                .setContentText(text)
-                .setContentTitle(title)
-                .setSubText("一键签到")
-                .setSmallIcon(R.drawable.ic_oksign)
-                .setWhen(System.currentTimeMillis())
-                .setAutoCancel(true)
-                .setColor(ThemeUtils.getColorByAttr(this, R.attr.colorPrimary))
-    }
-
-    @SuppressLint("WrongConstant")
-    private fun updateNotification(title: String, text: String, intent: Intent) {
-        manager.notify(1,
-                buildNotification(title, text)
-                        .setContentIntent(PendingIntent.getActivity(this, 0, intent, Intent.FLAG_ACTIVITY_NEW_TASK))
-                        .build())
-    }
-
-    private fun updateNotification(title: String, text: String, onGoing: Boolean) {
-        val notification = buildNotification(title, text).build()
-        if (onGoing) {
-            notification.flags = notification.flags or NotificationCompat.FLAG_ONGOING_EVENT
-        }
-        manager.notify(1, notification)
-    }
-
-    private fun updateNotification(title: String, text: String?, progress: Int, max: Int, indeterminate: Boolean) {
-        val notification = buildNotification(title, text)
-                .setProgress(max, progress, indeterminate)
-                .build()
-        notification.flags = notification.flags or NotificationCompat.FLAG_ONGOING_EVENT
-        manager.notify(1, notification)
-    }
-
-    private fun sign(data: SignDataBean) {
-        val kw = data.kw
-        updateNotification(getString(R.string.title_signing_progress, position + 1, signData.size), kw + "吧", position, signData.size, false)
-        TiebaApi.getInstance().sign(kw, data.tbs).enqueue(object : Callback<SignResultBean> {
-            override fun onFailure(call: Call<SignResultBean>, t: Throwable) {
-                if (t is TiebaException) {
-                    updateNotification(getString(R.string.title_signing_progress, position, signData.size), "${kw}吧 × (${t.code}) ${t.message}", position, signData.size, false)
-                } else {
-                    updateNotification(getString(R.string.title_signing_progress, position, signData.size), "${kw}吧 × ${t.message}", position, signData.size, false)
-                }
-                if (position < signData.size - 1) {
-                    position += 1
-                    handler.postDelayed({ sign(signData[position]) }, ThreadLocalRandom.current().nextInt(1000, 3500).toLong())
-                } else {
-                    updateNotification("签到完成", getString(R.string.text_oksign_done, signData.size), Intent(this@OKSignService, MainActivity::class.java))
-                    sendBroadcast(Intent(ACTION_SIGN_SUCCESS_ALL))
-                    stopForeground(true)
-                }
-            }
-
-            override fun onResponse(call: Call<SignResultBean>, response: Response<SignResultBean>) {
-                val signResultBean = response.body() ?: return
-                if (position < signData.size - 1) {
-                    position += 1
-                    if (signResultBean.userInfo != null) {
-                        updateNotification(getString(R.string.title_signing_progress, position, signData.size), kw + "吧 √ 经验 +" + signResultBean.userInfo.signBonusPoint, position, signData.size, false)
-                    } else {
-                        updateNotification(getString(R.string.title_signing_progress, position, signData.size), kw + "吧 √", position, signData.size, false)
-                    }
-                    handler.postDelayed({ sign(signData[position]) }, ThreadLocalRandom.current().nextInt(1000, 3500).toLong())
-                } else {
-                    updateNotification("签到完成", getString(R.string.text_oksign_done, signData.size), Intent(this@OKSignService, MainActivity::class.java))
-                    sendBroadcast(Intent(ACTION_SIGN_SUCCESS_ALL))
-                    stopForeground(true)
-                }
-            }
-
-        })
+        return super.onStartCommand(intent, flags, startId)
     }
 
     override fun onHandleIntent(intent: Intent?) {
-        if (intent != null) {
-            if (ACTION_START_SIGN == intent.action) {
-                val bduss = AccountUtil.getBduss(this)
-                if (bduss != null) {
-                    AccountUtil.updateUserInfoByBduss(this@OKSignService, bduss, object : CommonCallback<MyInfoBean> {
-                        override fun onSuccess(data: MyInfoBean) {
-                            TiebaApi.getInstance().forumRecommend().enqueue(object : Callback<ForumRecommend> {
-                                override fun onFailure(call: Call<ForumRecommend>, t: Throwable) {
-                                    updateNotification("签到失败", t.message ?: "未知错误", false)
-                                    stopForeground(true)
-                                }
-
-                                override fun onResponse(call: Call<ForumRecommend>, response: Response<ForumRecommend>) {
-                                    val itemBeanList = response.body()?.likeForum ?: return
-                                    for ((_, forumName, _, isSign) in itemBeanList) {
-                                        if ("1" != isSign) {
-                                            signData.add(SignDataBean(forumName, data.data.getItbTbs()))
-                                        }
-                                    }
-                                    startSign()
-                                }
-
-                            })
+        Log.i(TAG, "onHandleWork")
+        if (intent?.action == ACTION_START_SIGN) {
+            val loginInfo = AccountUtil.getLoginInfo()
+            if (loginInfo != null) {
+                runBlocking {
+                    SingleAccountSigner(
+                        this@OKSignService,
+                        AccountUtil.getLoginInfo()!!
+                    )
+                        .apply {
+                            setProgressListener(this@OKSignService)
                         }
-
-                        override fun onFailure(code: Int, error: String) {
-                            updateNotification("签到失败", error, false)
-                            stopForeground(true)
-                        }
-                    })
-                } else {
-                    updateNotification("签到失败", "请先登录", Intent(this, LoginActivity::class.java))
-                    stopForeground(true)
+                        .start()
                 }
+            } else {
+                updateNotification(
+                    getString(R.string.title_oksign_fail),
+                    getString(R.string.text_login_first)
+                )
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+            }
+        } else {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        notificationManager.createNotificationChannel(
+            NotificationChannelCompat.Builder(
+                NOTIFICATION_CHANNEL_ID,
+                NotificationManagerCompat.IMPORTANCE_LOW
+            )
+                .setName(getString(R.string.title_oksign))
+                .setLightsEnabled(false)
+                .setShowBadge(false)
+                .build()
+        )
+    }
+
+    private fun buildNotification(title: String, text: String?): NotificationCompat.Builder {
+        createNotificationChannel()
+        return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
+            .setForegroundServiceBehavior(FOREGROUND_SERVICE_IMMEDIATE)
+            .setContentText(text)
+            .setContentTitle(title)
+            .setSubText(getString(R.string.title_oksign))
+            .setSmallIcon(R.drawable.ic_oksign)
+            .setAutoCancel(true)
+            .setStyle(NotificationCompat.BigTextStyle())
+            .setColor(ThemeUtils.getColorByAttr(this, R.attr.colorPrimary))
+    }
+
+    private fun updateNotification(title: String, text: String, intent: Intent?) {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        notificationManager.notify(
+            NOTIFICATION_ID,
+            buildNotification(title, text)
+                .apply {
+                    if (intent != null) {
+                        setContentIntent(
+                            PendingIntent.getActivity(
+                                this@OKSignService,
+                                0,
+                                intent,
+                                pendingIntentFlagImmutable()
+                            )
+                        )
+
+                    }
+                }
+                .build()
+        )
+    }
+
+    private fun updateNotification(title: String, text: String?) {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val notification = buildNotification(title, text)
+            .build()
+        notification.flags = notification.flags.addFlag(NotificationCompat.FLAG_ONGOING_EVENT)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun clearNotification() {
+        notificationManager.cancel(NOTIFICATION_ID)
+    }
+
+
+    override fun onStart(total: Int) {
+        updateNotification(getString(R.string.title_start_sign), null)
+        if (total > 0) Toast.makeText(
+            this,
+            R.string.toast_oksign_start,
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        coroutineContext.cancel()
+    }
+
+    override fun onProgressStart(signDataBean: SignDataBean, current: Int, total: Int) {
+        lastSignData = signDataBean
+        updateNotification(
+            getString(
+                R.string.title_signing_progress,
+                signDataBean.userName,
+                current,
+                total
+            ),
+            getString(
+                R.string.title_forum_name,
+                signDataBean.forumName
+            )
+        )
+    }
+
+    override fun onProgressFinish(
+        signDataBean: SignDataBean,
+        signResultBean: SignResultBean,
+        current: Int,
+        total: Int
+    ) {
+        updateNotification(
+            getString(
+                R.string.title_signing_progress,
+                signDataBean.userName,
+                current + 1,
+                total
+            ),
+            if (signResultBean.userInfo?.signBonusPoint != null)
+                getString(
+                    R.string.text_singing_progress_exp,
+                    signDataBean.forumName,
+                    signResultBean.userInfo.signBonusPoint
+                )
+            else
+                getString(R.string.text_singing_progress, signDataBean.forumName)
+        )
+    }
+
+    override fun onFinish(success: Boolean, signedCount: Int, total: Int) {
+        updateNotification(
+            getString(R.string.title_oksign_finish),
+            if (total > 0) getString(
+                R.string.text_oksign_done,
+                signedCount
+            ) else getString(R.string.text_oksign_no_signable),
+            packageManager.getLaunchIntentForPackage(packageName)?.apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+        )
+        sendBroadcast(Intent(ACTION_SIGN_SUCCESS_ALL))
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+    }
+
+    override fun onFailure(current: Int, total: Int, errorCode: Int, errorMsg: String) {
+        lastSignData.let {
+            if (it == null) {
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+                updateNotification(getString(R.string.title_oksign_fail), errorMsg)
+            } else {
+                updateNotification(
+                    getString(
+                        R.string.title_signing_progress,
+                        it.userName,
+                        current + 1,
+                        total
+                    ),
+                    getString(R.string.text_singing_progress_fail, it.forumName, errorMsg)
+                )
             }
         }
     }
 
     companion object {
-        const val TAG = "OKSignService"
-        const val ACTION_START_SIGN = "com.huanchengfly.tieba.post.service.action.ACTION_SIGN_START"
-        const val ACTION_SIGN_SUCCESS_ALL = "com.huanchengfly.tieba.post.service.action.SIGN_SUCCESS_ALL"
+//        fun enqueueWork(context: Context, work: Intent) {
+//            enqueueWork(context, OKSignService::class.java, JOB_ID, work)
+//        }
+//
+//        private const val JOB_ID = 233
 
-        private val handler = Handler()
+        const val TAG = "OKSignService"
+        const val NOTIFICATION_CHANNEL_ID = "1"
+        const val NOTIFICATION_ID = 1
+        const val ACTION_SIGN_SUCCESS_ALL =
+            "com.huanchengfly.tieba.post.service.action.SIGN_SUCCESS_ALL"
+        const val ACTION_START_SIGN = "com.huanchengfly.tieba.post.service.action.ACTION_SIGN_START"
     }
 }

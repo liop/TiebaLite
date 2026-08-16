@@ -2,46 +2,40 @@ package com.huanchengfly.tieba.post.api.models
 
 import com.google.gson.annotations.SerializedName
 import com.huanchengfly.tieba.post.models.BaseBean
-import com.huanchengfly.tieba.post.utils.GsonUtil
 
-class SignResultBean : BaseBean() {
+data class SignResultBean(
     @SerializedName("user_info")
-    val userInfo: UserInfo? = null
-
+    val userInfo: UserInfo? = null,
     @SerializedName("error_code")
-    val errorCode: String? = null
-
-    fun getErrorCode() = Integer.valueOf(errorCode!!)
-
+    val errorCode: String? = null,
     @SerializedName("error_msg")
-    val errorMsg: String? = null
+    val errorMsg: String? = null,
     val time: Long? = null
-
-    override fun toString(): String {
-        return GsonUtil.getGson().toJson(this)
-    }
-
-    inner class UserInfo : BaseBean() {
+) : BaseBean() {
+    data class UserInfo(
         @SerializedName("user_id")
-        val userId: String? = null
-
+        val userId: String? = null,
         @SerializedName("is_sign_in")
-        val isSignIn: String? = null
-
+        val isSignIn: String? = null,
+        @SerializedName("cont_sign_num")
+        val contSignNum: String? = null,
         @SerializedName("user_sign_rank")
-        val userSignRank: String? = null
-
+        val userSignRank: String? = null,
         @SerializedName("sign_time")
-        val signTime: String? = null
-
+        val signTime: String? = null,
         @SerializedName("sign_bonus_point")
-        val signBonusPoint: String? = null
-
+        val signBonusPoint: String? = null,
         @SerializedName("level_name")
-        val levelName: String? = null
-
+        val levelName: String? = null,
         @SerializedName("levelup_score")
-        val levelUpScore: String? = null
-
+        val levelUpScore: String? = null,
+        @SerializedName("all_level_info")
+        val allLevelInfo: List<AllLevelInfo> = emptyList()
+    ) : BaseBean() {
+        data class AllLevelInfo(
+            val id: String,
+            val name: String,
+            val score: String
+        )
     }
 }

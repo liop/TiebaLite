@@ -1,6 +1,5 @@
 package com.huanchengfly.tieba.post.services
 
-import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
@@ -9,15 +8,16 @@ import android.app.job.JobParameters
 import android.app.job.JobService
 import android.content.Context
 import android.content.Intent
+import android.content.Intent.ACTION_VIEW
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import com.huanchengfly.tieba.post.ui.theme.utils.ThemeUtils
+import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.MsgBean
-import com.huanchengfly.tieba.post.R
-import com.huanchengfly.tieba.post.activities.MessageActivity
-import com.huanchengfly.tieba.post.fragments.MessageFragment
+import com.huanchengfly.tieba.post.pendingIntentFlagImmutable
+import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -26,8 +26,10 @@ class NotifyJobService : JobService() {
     var notificationManager: NotificationManager? = null
     private fun createChannel(id: String, name: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(id,
-                    name, NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(
+                id,
+                name, NotificationManager.IMPORTANCE_DEFAULT
+            )
             channel.group = CHANNEL_GROUP
             channel.setShowBadge(true)
             notificationManager!!.createNotificationChannel(channel)
@@ -62,27 +64,51 @@ class NotifyJobService : JobService() {
                         if (replyCount != null) {
                             total += replyCount
                         }
-                        sendBroadcast(Intent()
+                        sendBroadcast(
+                            Intent()
                                 .setAction(ACTION_NEW_MESSAGE)
                                 .putExtra("channel", CHANNEL_REPLY)
-                                .putExtra("count", replyCount))
-                        updateNotification(getString(R.string.tips_message_reply, msgBean.message?.replyMe), ID_REPLY, CHANNEL_REPLY, CHANNEL_REPLY_NAME, MessageActivity.createIntent(this@NotifyJobService, MessageFragment.TYPE_REPLY_ME))
+                                .putExtra("count", replyCount)
+                        )
+                        updateNotification(
+                            getString(
+                                R.string.tips_message_reply,
+                                msgBean.message?.replyMe
+                            ),
+                            ID_REPLY,
+                            CHANNEL_REPLY,
+                            CHANNEL_REPLY_NAME,
+                            Intent(ACTION_VIEW, Uri.parse("tblite://notifications/0"))
+                        )
                     }
                     if ("0" != msgBean.message?.atMe) {
                         val atCount = msgBean.message?.atMe?.let { Integer.valueOf(it) }
                         if (atCount != null) {
                             total += atCount
                         }
-                        sendBroadcast(Intent()
+                        sendBroadcast(
+                            Intent()
                                 .setAction(ACTION_NEW_MESSAGE)
                                 .putExtra("channel", CHANNEL_AT)
-                                .putExtra("count", msgBean.message?.atMe))
-                        updateNotification(getString(R.string.tips_message_at, msgBean.message?.atMe), ID_AT, CHANNEL_AT, CHANNEL_AT_NAME, MessageActivity.createIntent(this@NotifyJobService, MessageFragment.TYPE_AT_ME))
+                                .putExtra("count", msgBean.message?.atMe)
+                        )
+                        updateNotification(
+                            getString(
+                                R.string.tips_message_at,
+                                msgBean.message?.atMe
+                            ),
+                            ID_AT,
+                            CHANNEL_AT,
+                            CHANNEL_AT_NAME,
+                            Intent(ACTION_VIEW, Uri.parse("tblite://notifications/1"))
+                        )
                     }
-                    sendBroadcast(Intent()
+                    sendBroadcast(
+                        Intent()
                             .setAction(ACTION_NEW_MESSAGE)
                             .putExtra("channel", CHANNEL_TOTAL)
-                            .putExtra("count", total))
+                            .putExtra("count", total)
+                    )
                 }
                 jobFinished(params, false)
             }
@@ -94,19 +120,31 @@ class NotifyJobService : JobService() {
         return true
     }
 
-    @SuppressLint("WrongConstant")
-    private fun updateNotification(text: String, id: Int, channel: String, channelName: String, intent: Intent) {
+    private fun updateNotification(
+        text: String,
+        id: Int,
+        channel: String,
+        channelName: String,
+        intent: Intent
+    ) {
         val notification = NotificationCompat.Builder(this, channel)
-                .setSubText(channelName)
-                .setContentText(getString(R.string.tip_touch_to_view))
-                .setContentTitle(text)
-                .setSmallIcon(R.drawable.ic_round_drafts)
-                .setWhen(System.currentTimeMillis())
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setContentIntent(PendingIntent.getActivity(this, 0, intent, Intent.FLAG_ACTIVITY_NEW_TASK))
-                .setColor(ThemeUtils.getColorByAttr(this, R.attr.colorPrimary))
-                .build()
+            .setSubText(channelName)
+            .setContentText(getString(R.string.tip_touch_to_view))
+            .setContentTitle(text)
+            .setSmallIcon(R.drawable.ic_round_drafts)
+            .setWhen(System.currentTimeMillis())
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    intent,
+                    pendingIntentFlagImmutable()
+                )
+            )
+            .setColor(ThemeUtils.getColorByAttr(this, R.attr.colorPrimary))
+            .build()
         notificationManager!!.notify(id, notification)
     }
 

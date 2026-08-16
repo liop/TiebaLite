@@ -1,5 +1,7 @@
 package com.huanchengfly.tieba.post.utils;
 
+import static com.huanchengfly.tieba.post.ExtensionsKt.pendingIntentFlagMutable;
+
 import android.annotation.SuppressLint;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
@@ -13,8 +15,8 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.huanchengfly.tieba.post.activities.MainActivity;
-import com.huanchengfly.tieba.post.BaseApplication;
+import com.huanchengfly.tieba.post.App;
+import com.huanchengfly.tieba.post.MainActivityV2;
 
 public class CrashUtil {
     public static final String TAG = "CrashUtil";
@@ -106,17 +108,20 @@ public class CrashUtil {
 
     @SuppressWarnings("WrongConstant")
     private static void restart(@NonNull Context context) {
-        Intent intent = new Intent(context.getApplicationContext(), MainActivity.class)
+        Intent intent = new Intent(context.getApplicationContext(), MainActivityV2.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         AlarmManager mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (mAlarmManager != null) {
             PendingIntent restartIntent = PendingIntent.getActivity(
-                    context.getApplicationContext(), 0, intent,
-                    Intent.FLAG_ACTIVITY_NEW_TASK);
+                    context.getApplicationContext(),
+                    0,
+                    intent,
+                    pendingIntentFlagMutable()
+            );
             mAlarmManager.set(AlarmManager.RTC, System.currentTimeMillis() + 1000,
                     restartIntent);
         }
-        ((BaseApplication) context.getApplicationContext()).removeAllActivity();
+        ((App) context.getApplicationContext()).removeAllActivity();
         android.os.Process.killProcess(android.os.Process.myPid());
     }
 

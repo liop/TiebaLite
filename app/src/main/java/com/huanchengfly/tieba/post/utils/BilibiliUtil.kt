@@ -2,10 +2,7 @@ package com.huanchengfly.tieba.post.utils
 
 import android.content.Context
 import android.text.SpannableString
-import android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-import com.huanchengfly.tieba.post.components.spans.MyURLSpan
 import org.intellij.lang.annotations.RegExp
-import java.util.regex.Pattern
 
 object BilibiliUtil {
     @RegExp
@@ -22,8 +19,8 @@ object BilibiliUtil {
 
     @JvmStatic
     fun replaceVideoNumberSpan(
-            context: Context,
-            source: CharSequence?
+        context: Context,
+        source: CharSequence?
     ): SpannableString {
         if (source == null) {
             return SpannableString("")
@@ -41,23 +38,11 @@ object BilibiliUtil {
     }
 
     private fun replace(
-            context: Context,
-            regex: String,
-            source: SpannableString,
-            urlPrefix: String = "https://www.bilibili.com/video/"
+        context: Context,
+        regex: String,
+        source: SpannableString,
+        urlPrefix: String = "https://www.bilibili.com/video/"
     ): CharSequence {
-        try {
-            val pattern = Pattern.compile(regex)
-            val matcher = pattern.matcher(source)
-            while (matcher.find()) {
-                val found: String = matcher.group()
-                val start: Int = matcher.start()
-                val span = MyURLSpan(context, "$urlPrefix$found")
-                source.setSpan(span, start, start + found.length, SPAN_EXCLUSIVE_EXCLUSIVE)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
         return source
     }
 }

@@ -10,7 +10,7 @@ import androidx.appcompat.app.AlertDialog;
 import com.huanchengfly.tieba.post.R;
 
 public class LoadingDialog extends AlertDialog {
-    private Context mContext;
+    private final Context mContext;
     private TextView loadingTipView;
 
     public LoadingDialog(Context context) {
@@ -24,7 +24,7 @@ public class LoadingDialog extends AlertDialog {
         loadingTipView = contentView.findViewById(R.id.dialog_loading_tip);
         setCancelable(false);
         setView(contentView);
-        setTipText(R.string.tip_loading);
+        setTipText(R.string.text_loading);
     }
 
     public void setTipText(@StringRes int resId) {

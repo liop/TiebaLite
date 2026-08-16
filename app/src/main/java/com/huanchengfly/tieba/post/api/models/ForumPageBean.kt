@@ -34,93 +34,96 @@ class ForumPageBean : ErrorBean() {
     class ZyqDefineBean : BaseBean() {
         var name: String? = null
         var link: String? = null
-
     }
 
     class ManagerBean : BaseBean() {
         val id: String? = null
         val name: String? = null
-
     }
 
-    class ForumBean : BaseBean() {
-        var id: String? = null
-        var name: String? = null
+    data class ThemeColors(
+        var day: ThemeColor,
+        var dark: ThemeColor,
+        var night: ThemeColor
+    ) {
+        data class ThemeColor(
+            @SerializedName("common_color")
+            var commonColor: String,
+            @SerializedName("dark_color")
+            var darkColor: String,
+            @SerializedName("font_color")
+            var fontColor: String,
+            @SerializedName("light_color")
+            var lightColor: String,
+        )
+    }
+
+    data class ForumBean(
+        val id: String? = null,
+        val name: String? = null,
 
         @SerializedName("is_like")
-        var isLike: String? = null
+        var isLike: String? = null,
 
         @SerializedName("user_level")
-        var userLevel: String? = null
+        var userLevel: String? = null,
 
         @SerializedName("level_id")
-        var levelId: String? = null
+        var levelId: String? = null,
 
         @SerializedName("level_name")
-        var levelName: String? = null
+        var levelName: String? = null,
 
         @SerializedName("is_exists")
-        var isExists: String? = null
+        var isExists: String? = null,
 
         @SerializedName("cur_score")
-        var curScore: String? = null
+        var curScore: String? = null,
 
         @SerializedName("levelup_score")
-        var levelUpScore: String? = null
+        var levelUpScore: String? = null,
 
         @SerializedName("member_num")
-        var memberNum: String? = null
+        var memberNum: String? = null,
+
+        @SerializedName("thread_num")
+        var threadNum: String? = null,
+
+        @SerializedName("theme_color")
+        var themeColor: ThemeColors? = null,
 
         @SerializedName("post_num")
-        var postNum: String? = null
-        var managers: List<ManagerBean>? = null
-        var zyqTitle: String? = null
-        var zyqDefine: List<ZyqDefineBean>? = null
-        var zyqFriend: List<String>? = null
+        var postNum: String? = null,
+        var managers: List<ManagerBean>? = null,
+        var zyqTitle: String? = null,
+        var zyqDefine: List<ZyqDefineBean>? = null,
+        var zyqFriend: List<String>? = null,
 
         @SerializedName("good_classify")
-        var goodClassify: List<GoodClassifyBean>? = null
-        var slogan: String? = null
-        var avatar: String? = null
-        var tids: String? = null
-
+        var goodClassify: List<GoodClassifyBean>? = null,
+        var slogan: String? = null,
+        var avatar: String? = null,
+        var tids: String? = null,
         @SerializedName("sign_in_info")
         var signInInfo: SignInInfo? = null
-
-        fun setIsLike(isLike: String?): ForumBean {
-            this.isLike = isLike
-            return this
-        }
-
-        fun setIsExists(isExists: String?): ForumBean {
-            this.isExists = isExists
-            return this
-        }
-
-        class SignInInfo {
+    ) : BaseBean() {
+        data class SignInInfo(
             @SerializedName("user_info")
             val userInfo: UserInfo? = null
-
-            class UserInfo {
+        ) {
+            data class UserInfo(
                 @SerializedName("is_sign_in")
                 var isSignIn: String? = null
-
-                fun setIsSignIn(isSignIn: String?): UserInfo {
-                    this.isSignIn = isSignIn
-                    return this
-                }
-            }
+            )
         }
     }
 
-    class GoodClassifyBean : BaseBean() {
+    data class GoodClassifyBean(
         @SerializedName("class_id")
-        val classId: String? = null
-
+        val classId: String? = null,
         @SerializedName("class_name")
         val className: String? = null
-
-    }
+    ) : BaseBean()
 
     class AntiBean : BaseBean() {
         val tbs: String? = null
@@ -230,7 +233,7 @@ class ForumPageBean : ErrorBean() {
             private set
 
         @SerializedName("abstract")
-        var abstractBeans: List<AbstractBean>? = null
+        var abstractBeans: List<AbstractBean?>? = null
             private set
         private var abstractString: String? = null
 
@@ -315,7 +318,8 @@ class ForumPageBean : ErrorBean() {
             }
             if (abstractBeans != null) {
                 val stringBuilder = StringBuilder()
-                for (abstractBean in abstractBeans!!) {
+                for (abstractBean in abstractBeans ?: emptyList()) {
+                    if (abstractBean == null) continue
                     stringBuilder.append(abstractBean.text)
                 }
                 return stringBuilder.toString()
@@ -328,7 +332,7 @@ class ForumPageBean : ErrorBean() {
             return this
         }
 
-        fun setAbstractBeans(abstractBeans: List<AbstractBean>?): ThreadBean {
+        fun setAbstractBeans(abstractBeans: List<AbstractBean?>?): ThreadBean {
             this.abstractBeans = abstractBeans
             return this
         }
@@ -354,6 +358,10 @@ class ForumPageBean : ErrorBean() {
 
         @SerializedName("big_pic")
         var bigPic: String? = null
+            private set
+
+        @SerializedName("dynamic_pic")
+        var dynamicPic: String? = null
             private set
 
         @SerializedName("src_pic")
