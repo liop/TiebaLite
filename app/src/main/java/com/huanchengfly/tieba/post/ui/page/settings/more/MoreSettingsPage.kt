@@ -1,5 +1,7 @@
 package com.huanchengfly.tieba.post.ui.page.settings.more
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
@@ -39,12 +41,18 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.LocalSnackbarHostState
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
+import com.huanchengfly.tieba.post.utils.BackupManager
 import com.huanchengfly.tieba.post.utils.ImageCacheUtil
 import com.huanchengfly.tieba.post.utils.appPreferences
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.concurrent.thread
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterialApi::class)
 @Destination
@@ -53,6 +61,22 @@ fun MoreSettingsPage(
     navigator: DestinationsNavigator,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val snackbarHostState = LocalSnackbarHostState.current
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val result = runCatching { context.contentResolver.openOutputStream(uri)?.use { BackupManager.export(context, it) } ?: error("无法写入备份文件") }
+            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_export_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val result = runCatching { context.contentResolver.openInputStream(uri)?.use { BackupManager.import(context, it) } ?: error("无法读取备份文件") }
+            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_import_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
+        }
+    }
     MyScaffold(
         backgroundColor = Color.Transparent,
         topBar = {
@@ -69,8 +93,6 @@ fun MoreSettingsPage(
             )
         },
     ) { paddingValues ->
-        val snackbarHostState = LocalSnackbarHostState.current
-        val context = LocalContext.current
         var cacheSize by remember { mutableStateOf("0.0B") }
         LaunchedEffect(Unit) {
             thread {
@@ -84,6 +106,22 @@ fun MoreSettingsPage(
                 .padding(paddingValues)
                 .fillMaxSize(),
         ) {
+            prefsItem {
+                TextPref(
+                    leadingIcon = { LeadingIcon { AvatarIcon(icon = Icons.Outlined.Info, size = Sizes.Small, contentDescription = null) } },
+                    title = stringResource(id = R.string.title_backup_export),
+                    summary = stringResource(id = R.string.summary_backup_export),
+                    onClick = { exportLauncher.launch("TiebaLite-backup-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".json") },
+                )
+            }
+            prefsItem {
+                TextPref(
+                    leadingIcon = { LeadingIcon { AvatarIcon(icon = Icons.Outlined.Info, size = Sizes.Small, contentDescription = null) } },
+                    title = stringResource(id = R.string.title_backup_import),
+                    summary = stringResource(id = R.string.summary_backup_import),
+                    onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
+                )
+            }
             if (context.appPreferences.showExperimentalFeatures) {
                 prefsItem {
                     SwitchPref(

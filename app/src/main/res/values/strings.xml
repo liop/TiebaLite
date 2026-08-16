@@ -19,6 +19,13 @@
     <string name="title_history_delete">清空浏览记录</string>
     <string name="toast_delete_success">删除成功</string>
     <string name="title_about">关于</string>
+    <string name="title_backup_export">导出账号与配置</string>
+    <string name="summary_backup_export">保存为备份文件，可在重装后导入</string>
+    <string name="title_backup_import">导入账号与配置</string>
+    <string name="summary_backup_import">导入会覆盖当前账号和应用配置</string>
+    <string name="toast_backup_export_success">备份导出成功</string>
+    <string name="toast_backup_import_success">备份导入成功，请重启 App 以完全应用配置</string>
+    <string name="toast_backup_failed">备份操作失败：%s</string>
     <string name="my_info_settings">设置</string>
     <string name="title_settings">设置</string>
     <string name="title_settings_custom">个性化</string>
