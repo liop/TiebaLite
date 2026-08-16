@@ -62,21 +62,6 @@ fun MoreSettingsPage(
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val snackbarHostState = LocalSnackbarHostState.current
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        coroutineScope.launch(Dispatchers.IO) {
-            val result = runCatching { context.contentResolver.openOutputStream(uri)?.use { BackupManager.export(context, it) } ?: error("无法写入备份文件") }
-            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_export_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
-        }
-    }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        coroutineScope.launch(Dispatchers.IO) {
-            val result = runCatching { context.contentResolver.openInputStream(uri)?.use { BackupManager.import(context, it) } ?: error("无法读取备份文件") }
-            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_import_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
-        }
-    }
     MyScaffold(
         backgroundColor = Color.Transparent,
         topBar = {
@@ -93,6 +78,21 @@ fun MoreSettingsPage(
             )
         },
     ) { paddingValues ->
+    val snackbarHostState = LocalSnackbarHostState.current
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val result = runCatching { context.contentResolver.openOutputStream(uri)?.use { BackupManager.export(context, it) } ?: error("无法写入备份文件") }
+            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_export_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
+        }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val result = runCatching { context.contentResolver.openInputStream(uri)?.use { BackupManager.import(context, it) } ?: error("无法读取备份文件") }
+            withContext(Dispatchers.Main) { snackbarHostState.showSnackbar(result.fold({ context.getString(R.string.toast_backup_import_success) }, { context.getString(R.string.toast_backup_failed, it.message ?: "未知错误") })) }
+        }
+    }
         var cacheSize by remember { mutableStateOf("0.0B") }
         LaunchedEffect(Unit) {
             thread {
