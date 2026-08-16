@@ -28,6 +28,7 @@ import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,6 +58,8 @@ import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestination
 import com.huanchengfly.tieba.post.ui.page.forum.getSortType
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockTip
+import com.huanchengfly.tieba.post.ui.widgets.compose.AlertDialog
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockableContent
 import com.huanchengfly.tieba.post.ui.widgets.compose.Chip
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCard
@@ -162,6 +165,56 @@ private fun TopThreadItem(
     }
 }
 
+private sealed interface ThreadListEntry {
+    data class Thread(val index: Int, val item: ThreadItemData) : ThreadListEntry
+    data class Blocked(val items: List<ThreadItemData>) : ThreadListEntry
+}
+
+private fun List<ThreadItemData>.groupBlockedThreads(): List<ThreadListEntry> {
+    val entries = mutableListOf<ThreadListEntry>()
+    val blockedItems = mutableListOf<ThreadItemData>()
+    fun flush() { if (blockedItems.isNotEmpty()) { entries += ThreadListEntry.Blocked(blockedItems.toList()); blockedItems.clear() } }
+    forEachIndexed { index, item ->
+        if (item.blocked) blockedItems += item else { flush(); entries += ThreadListEntry.Thread(index, item) }
+    }
+    flush()
+    return entries
+}
+
+@Composable
+private fun BlockedThreadGroup(items: List<ThreadItemData>, onItemClicked: (ThreadInfo) -> Unit) {
+    val dialogState = rememberDialogState()
+    BlockableContent(
+        blocked = true,
+        blockedTip = { BlockTip(
+            text = { Text(text = stringResource(R.string.tip_blocked_thread_count, items.size)) },
+            modifier = Modifier.clickable { dialogState.show() },
+        ) },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp),
+    ) {}
+    AlertDialog(
+        dialogState = dialogState,
+        title = { Text(text = stringResource(R.string.title_blocked_threads)) },
+        content = {
+            Column {
+                items.forEach { threadItem ->
+                    val thread = threadItem.thread.get { this }
+                    val title = thread.title.takeUnless { it.isBlank() } ?: thread.abstractText
+                    Text(
+                        text = title,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            dialogState.show = false
+                            onItemClicked(thread)
+                        }.padding(vertical = 12.dp),
+                    )
+                }
+            }
+        },
+    )
+}
+
 @Composable
 private fun ThreadList(
     state: LazyListState,
@@ -174,80 +227,34 @@ private fun ThreadList(
     onOriginThreadClicked: (OriginThreadInfo) -> Unit = {},
     onUserClicked: (User) -> Unit = {},
 ) {
-    val windowSizeClass = LocalWindowSizeClass.current
-    val itemFraction = when (windowSizeClass.widthSizeClass) {
-        WindowWidthSizeClass.Expanded -> 0.5f
-        else -> 1f
-    }
-    MyLazyColumn(
-        state = state,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth(),
-        contentPadding = WindowInsets.navigationBars.asPaddingValues()
-    ) {
-        if (!forumRuleTitle.isNullOrEmpty()) {
-            item(key = "ForumRule") {
-                TopThreadItem(
-                    title = forumRuleTitle,
-                    onClick = {
-                        onOpenForumRule?.invoke()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    type = stringResource(id = R.string.desc_forum_rule)
-                )
-            }
+    val itemFraction = if (LocalWindowSizeClass.current.widthSizeClass == WindowWidthSizeClass.Expanded) 0.5f else 1f
+    val entries = remember(items) { items.groupBlockedThreads() }
+    MyLazyColumn(state = state, horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth(), contentPadding = WindowInsets.navigationBars.asPaddingValues()) {
+        if (!forumRuleTitle.isNullOrEmpty()) item(key = "ForumRule") {
+            TopThreadItem(title = forumRuleTitle, onClick = { onOpenForumRule?.invoke() }, modifier = Modifier.fillMaxWidth(), type = stringResource(R.string.desc_forum_rule))
         }
-        itemsIndexed(
-            items = items,
-            key = { index, (holder) ->
-                val (item) = holder
-                "${index}_${item.id}"
-            },
-            contentType = { _, (holder) ->
-                val (item) = holder
-                if (item.isTop == 1) ItemType.Top
-                else {
-                    if (item.media.isNotEmpty())
-                        if (item.media.size == 1) ItemType.SingleMedia else ItemType.MultiMedia
-                    else if (item.videoInfo != null)
-                        ItemType.Video
-                    else ItemType.PlainText
-                }
-            }
-        ) { index, (holder, blocked) ->
-            BlockableContent(
-                blocked = blocked,
-                blockedTip = { BlockTip(text = { Text(text = stringResource(id = R.string.tip_blocked_thread)) }) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 16.dp),
-            ) {
-                val (item) = holder
-                Column(
-                    modifier = Modifier.fillMaxWidth(itemFraction)
-                ) {
-                    if (item.isTop == 1) {
-                        val title = item.title.takeUnless { it.isBlank() } ?: item.abstractText
-                        TopThreadItem(
-                            title = title,
-                            onClick = { onItemClicked(item) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        if (index > 0) {
-                            if (items[index - 1].thread.get { isTop } == 1) {
-                                Spacer(modifier = Modifier.height(8.dp))
+        items(items = entries, key = { entry -> when (entry) {
+            is ThreadListEntry.Thread -> "thread_${entry.item.thread.get { id }}"
+            is ThreadListEntry.Blocked -> "blocked_${entry.items.first().thread.get { id }}"
+        } }) { entry ->
+            when (entry) {
+                is ThreadListEntry.Blocked -> BlockedThreadGroup(entry.items, onItemClicked)
+                is ThreadListEntry.Thread -> {
+                    val index = entry.index
+                    val (holder, blocked) = entry.item
+                    BlockableContent(blocked = blocked, blockedTip = { BlockTip(text = { Text(stringResource(R.string.tip_blocked_thread)) }) }, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp, horizontal = 16.dp)) {
+                        val item = holder.get { this }
+                        Column(modifier = Modifier.fillMaxWidth(itemFraction)) {
+                            if (item.isTop == 1) {
+                                TopThreadItem(title = item.title.takeUnless { it.isBlank() } ?: item.abstractText, onClick = { onItemClicked(item) }, modifier = Modifier.fillMaxWidth())
+                            } else {
+                                if (index > 0) {
+                                    if (items[index - 1].thread.get { isTop } == 1) Spacer(modifier = Modifier.height(8.dp))
+                                    VerticalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                                FeedCard(item = holder, onClick = onItemClicked, onClickReply = onItemReplyClicked, onAgree = onAgree, onClickOriginThread = onOriginThreadClicked, onClickUser = onUserClicked)
                             }
-                            VerticalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                         }
-                        FeedCard(
-                            item = holder,
-                            onClick = onItemClicked,
-                            onClickReply = onItemReplyClicked,
-                            onAgree = onAgree,
-                            onClickOriginThread = onOriginThreadClicked,
-                            onClickUser = onUserClicked
-                        )
                     }
                 }
             }

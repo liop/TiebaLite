@@ -21,10 +21,12 @@ import com.huanchengfly.tieba.post.utils.appPreferences
 @Composable
 fun BlockTip(
     text: @Composable () -> Unit = { Text(text = stringResource(id = R.string.tip_blocked_content)) },
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .then(modifier)
             .clip(RoundedCornerShape(6.dp))
             .background(ExtendedTheme.colors.textSecondary.copy(alpha = 0.1f))
             .padding(vertical = 8.dp, horizontal = 16.dp)

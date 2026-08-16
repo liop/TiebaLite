@@ -75,15 +75,16 @@ object StringUtil {
 
     @JvmStatic
     fun getUsernameString(context: Context, username: String, nickname: String?): CharSequence {
+        val displayName = UserRemarkManager.getRemark(username) ?: nickname
         val showBoth = context.appPreferences.showBothUsernameAndNickname
-        if (TextUtils.isEmpty(nickname)) {
+        if (TextUtils.isEmpty(displayName)) {
             return if (TextUtils.isEmpty(username)) "" else username
         } else if (showBoth && !TextUtils.isEmpty(username) && !TextUtils.equals(
                 username,
-                nickname
+                displayName
             )
         ) {
-            val builder = SpannableStringBuilder(nickname)
+            val builder = SpannableStringBuilder(displayName)
             builder.append(
                 "($username)",
                 ForegroundColorSpan(ThemeUtils.getColorByAttr(context, R.attr.color_text_disabled)),
@@ -91,7 +92,7 @@ object StringUtil {
             )
             return builder
         }
-        return nickname ?: ""
+        return displayName ?: ""
     }
 
     @Stable
@@ -109,15 +110,17 @@ object StringUtil {
         val finalSex = if (sex != 0) sex else genderInfo.sex
         val isChanged = genderInfo.isChanged
 
+        val remark = UserRemarkManager.getRemark(username)
+        val displayName = remark ?: nickname
         val showBoth = App.isInitialized && context.appPreferences.showBothUsernameAndNickname
         return buildAnnotatedString {
-            if (showBoth && !nickname.isNullOrBlank() && username != nickname && username.isNotBlank()) {
-                append(nickname)
+            if (showBoth && !displayName.isNullOrBlank() && username != displayName && username.isNotBlank()) {
+                append(displayName)
                 withStyle(SpanStyle(color = color)) {
                     append("(${username})")
                 }
             } else {
-                append(nickname ?: username)
+                append(displayName ?: username)
             }
 
             if (finalSex == 1) {
@@ -145,8 +148,8 @@ object StringUtil {
     ): AnnotatedString {
         // Observe this state so Jetpack Compose automatically re-evaluates
         // this function when the cache gets updated anywhere in the app
-        val updateCount = UserGenderCache.updateCount
-        
+        UserGenderCache.updateCount
+        UserRemarkManager.updateCount
         return getUsernameAnnotatedString(context, username, nickname, color, sex)
     }
 

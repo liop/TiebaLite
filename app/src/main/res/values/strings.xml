@@ -458,6 +458,12 @@
     <string name="below_is_latest_post">以下为最新回复</string>
     <string name="btn_open_origin_thread">查看原贴</string>
     <string name="tip_blocked_thread">由于你的屏蔽设置，该贴已被屏蔽</string>
+    <string name="tip_blocked_thread_count">由于你的屏蔽设置，%d 个帖子已被屏蔽</string>
+    <string name="title_blocked_threads">已屏蔽的帖子</string>
+    <string name="menu_edit_user_remark">设置备注</string>
+    <string name="title_user_remark">用户备注</string>
+    <string name="text_user_remark">备注：%s</string>
+    <string name="hint_user_remark">留空可删除备注</string>
     <string name="tip_blocked_content">由于你的屏蔽设置，该内容已被屏蔽</string>
     <string name="tip_blocked_message">由于你的屏蔽设置，该消息已被屏蔽</string>
     <string name="tip_thread_store_deleted">该贴已被删除</string>

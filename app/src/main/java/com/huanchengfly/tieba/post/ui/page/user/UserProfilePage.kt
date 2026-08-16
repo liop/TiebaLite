@@ -96,6 +96,8 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.PagerTabIndicator
 import com.huanchengfly.tieba.post.ui.widgets.compose.ProvideContentColor
+import com.huanchengfly.tieba.post.ui.widgets.compose.PromptDialog
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.ui.widgets.compose.PullToRefreshLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.ScrollableTabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
@@ -108,6 +110,7 @@ import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
 import com.huanchengfly.tieba.post.utils.TiebaUtil
 import com.huanchengfly.tieba.post.utils.UserGenderCache
+import com.huanchengfly.tieba.post.utils.UserRemarkManager
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
@@ -243,6 +246,7 @@ private fun UserProfileToolbar(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val remarkDialogState = rememberDialogState()
 
     Toolbar(
         title = {
@@ -261,6 +265,11 @@ private fun UserProfileToolbar(
             user.takeUnless { isSelf }?.let {
                 ClickMenu(
                     menuContent = {
+                        DropdownMenuItem(
+                            onClick = { remarkDialogState.show() }
+                        ) {
+                            Text(text = stringResource(id = R.string.menu_edit_user_remark))
+                        }
                         DropdownMenuItem(
                             onClick = {
                                 BlockManager.addBlockAsync(
@@ -308,6 +317,16 @@ private fun UserProfileToolbar(
                 }
             }
         },
+    )
+    PromptDialog(
+        dialogState = remarkDialogState,
+        initialValue = UserRemarkManager.getRemark(user.get { name }).orEmpty(),
+        onConfirm = { remark ->
+            UserRemarkManager.setRemark(user.get { name }, remark)
+            remarkDialogState.show = false
+        },
+        title = { Text(text = stringResource(id = R.string.title_user_remark)) },
+        content = { Text(text = stringResource(id = R.string.hint_user_remark)) },
     )
 }
 
@@ -932,6 +951,10 @@ private fun UserProfileDetail(
                     )
                 }
             }
+        val userRemarkUpdateCount = UserRemarkManager.updateCount
+        val userRemark = remember(user.get { name }, userRemarkUpdateCount) {
+            UserRemarkManager.getRemark(user.get { name })
+        }
         val sexEmoji = remember(user.get { sex }, user.get { name }, UserGenderCache.updateCount) {
             val genderInfo = UserGenderCache.getGenderInfo(user.get { name })
             val finalSex = if (user.get { sex } != 0) user.get { sex } else genderInfo.sex
@@ -952,6 +975,9 @@ private fun UserProfileDetail(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Chip(text = sexEmoji, invertColor = true)
+            userRemark?.let { remark ->
+                Chip(text = stringResource(id = R.string.text_user_remark, remark))
+            }
             Chip(
                 text = stringResource(
                     id = R.string.text_profile_user_id,
