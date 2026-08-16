@@ -194,6 +194,7 @@ private fun BlockedThreadGroup(items: List<ThreadItemData>, onItemClicked: (Thre
     ) {}
     AlertDialog(
         dialogState = dialogState,
+        confirmText = stringResource(R.string.button_ok),
         title = { Text(text = stringResource(R.string.title_blocked_threads)) },
         content = {
             Column {

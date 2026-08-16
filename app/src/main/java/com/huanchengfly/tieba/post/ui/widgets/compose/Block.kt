@@ -20,8 +20,8 @@ import com.huanchengfly.tieba.post.utils.appPreferences
 
 @Composable
 fun BlockTip(
-    text: @Composable () -> Unit = { Text(text = stringResource(id = R.string.tip_blocked_content)) },
     modifier: Modifier = Modifier,
+    text: @Composable () -> Unit = { Text(text = stringResource(id = R.string.tip_blocked_content)) },
 ) {
     Column(
         modifier = Modifier
