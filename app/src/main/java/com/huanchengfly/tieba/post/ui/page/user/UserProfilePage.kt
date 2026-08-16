@@ -111,6 +111,7 @@ import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
 import com.huanchengfly.tieba.post.utils.TiebaUtil
 import com.huanchengfly.tieba.post.utils.UserGenderCache
 import com.huanchengfly.tieba.post.utils.UserRemarkManager
+import com.huanchengfly.tieba.post.utils.UserNoteManager
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
@@ -247,6 +248,7 @@ private fun UserProfileToolbar(
 ) {
     val context = LocalContext.current
     val remarkDialogState = rememberDialogState()
+    val noteDialogState = rememberDialogState()
 
     Toolbar(
         title = {
@@ -269,6 +271,11 @@ private fun UserProfileToolbar(
                             onClick = { remarkDialogState.show() }
                         ) {
                             Text(text = stringResource(id = R.string.menu_edit_user_remark))
+                        }
+                        DropdownMenuItem(
+                            onClick = { noteDialogState.show() }
+                        ) {
+                            Text(text = stringResource(id = R.string.menu_edit_user_note))
                         }
                         DropdownMenuItem(
                             onClick = {
@@ -327,6 +334,16 @@ private fun UserProfileToolbar(
         },
         title = { Text(text = stringResource(id = R.string.title_user_remark)) },
         content = { Text(text = stringResource(id = R.string.hint_user_remark)) },
+    )
+    PromptDialog(
+        dialogState = noteDialogState,
+        initialValue = UserNoteManager.getNote(user.get { name }).orEmpty(),
+        onConfirm = { note ->
+            UserNoteManager.setNote(user.get { name }, note)
+            noteDialogState.show = false
+        },
+        title = { Text(text = stringResource(id = R.string.title_user_note)) },
+        content = { Text(text = stringResource(id = R.string.hint_user_note)) },
     )
 }
 
@@ -855,6 +872,20 @@ private fun UserProfileDetail(
             overflow = TextOverflow.Ellipsis,
             fontWeight = FontWeight.Bold
         )
+        val userRemarkUpdateCount = UserRemarkManager.updateCount
+        val userRemark = remember(user.get { name }, userRemarkUpdateCount) {
+            UserRemarkManager.getRemark(user.get { name })
+        }
+        val userNoteUpdateCount = UserNoteManager.updateCount
+        val userNote = remember(user.get { name }, userNoteUpdateCount) {
+            UserNoteManager.getNote(user.get { name })
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(text = stringResource(R.string.text_profile_username, user.get { name }))
+            Text(text = stringResource(R.string.text_profile_nickname, user.get { nameShow }.ifBlank { stringResource(R.string.text_profile_empty_value) }))
+            Text(text = stringResource(R.string.text_profile_remark_nickname, userRemark ?: stringResource(R.string.text_profile_empty_value)))
+            Text(text = stringResource(R.string.text_profile_note, userNote ?: stringResource(R.string.text_profile_empty_value)))
+        }
         ProvideTextStyle(value = MaterialTheme.typography.body2) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -951,10 +982,6 @@ private fun UserProfileDetail(
                     )
                 }
             }
-        val userRemarkUpdateCount = UserRemarkManager.updateCount
-        val userRemark = remember(user.get { name }, userRemarkUpdateCount) {
-            UserRemarkManager.getRemark(user.get { name })
-        }
         val sexEmoji = remember(user.get { sex }, user.get { name }, UserGenderCache.updateCount) {
             val genderInfo = UserGenderCache.getGenderInfo(user.get { name })
             val finalSex = if (user.get { sex } != 0) user.get { sex } else genderInfo.sex
@@ -975,9 +1002,6 @@ private fun UserProfileDetail(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Chip(text = sexEmoji, invertColor = true)
-            userRemark?.let { remark ->
-                Chip(text = stringResource(id = R.string.text_user_remark, remark))
-            }
             Chip(
                 text = stringResource(
                     id = R.string.text_profile_user_id,

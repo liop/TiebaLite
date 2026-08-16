@@ -464,6 +464,14 @@
     <string name="title_user_remark">用户备注</string>
     <string name="text_user_remark">备注：%s</string>
     <string name="hint_user_remark">留空可删除备注</string>
+    <string name="menu_edit_user_note">编辑备注信息</string>
+    <string name="title_user_note">备注信息</string>
+    <string name="hint_user_note">仅自己可见，留空可删除</string>
+    <string name="text_profile_username">用户名：%s</string>
+    <string name="text_profile_nickname">用户昵称：%s</string>
+    <string name="text_profile_remark_nickname">昵称备注：%s</string>
+    <string name="text_profile_note">备注信息：%s</string>
+    <string name="text_profile_empty_value">无</string>
     <string name="tip_blocked_content">由于你的屏蔽设置，该内容已被屏蔽</string>
     <string name="tip_blocked_message">由于你的屏蔽设置，该消息已被屏蔽</string>
     <string name="tip_thread_store_deleted">该贴已被删除</string>
