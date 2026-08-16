@@ -107,6 +107,7 @@ import com.huanchengfly.tieba.post.utils.BlockManager
 import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
 import com.huanchengfly.tieba.post.utils.TiebaUtil
+import com.huanchengfly.tieba.post.utils.UserGenderCache
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
@@ -753,11 +754,12 @@ private fun ToolbarUserTitle(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
+                text = StringUtil.getUsernameAnnotatedStringCompose(
                     LocalContext.current,
                     user.get { name },
                     user.get { nameShow },
-                    LocalContentColor.current
+                    LocalContentColor.current,
+                    sex = user.get { sex }
                 )
             )
         },
@@ -822,11 +824,12 @@ private fun UserProfileDetail(
             }
         }
         Text(
-            text = StringUtil.getUsernameAnnotatedString(
+            text = StringUtil.getUsernameAnnotatedStringCompose(
                 LocalContext.current,
                 user.get { name },
                 user.get { nameShow },
-                LocalContentColor.current
+                LocalContentColor.current,
+                sex = user.get { sex }
             ),
             style = MaterialTheme.typography.h6,
             maxLines = 1,
@@ -929,10 +932,20 @@ private fun UserProfileDetail(
                     )
                 }
             }
-        val sexEmoji = when (user.get { sex }) {
-            1 -> "♂"
-            2 -> "♀"
-            else -> "?"
+        val sexEmoji = remember(user.get { sex }, user.get { name }, UserGenderCache.updateCount) {
+            val genderInfo = UserGenderCache.getGenderInfo(user.get { name })
+            val finalSex = if (user.get { sex } != 0) user.get { sex } else genderInfo.sex
+            val isChanged = genderInfo.isChanged
+            buildString {
+                append(
+                    when (finalSex) {
+                        1 -> "♂"
+                        2 -> "♀"
+                        else -> "?"
+                    }
+                )
+                if (isChanged) append("✨")
+            }
         }
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

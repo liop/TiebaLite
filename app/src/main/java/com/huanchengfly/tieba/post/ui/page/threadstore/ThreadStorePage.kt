@@ -67,6 +67,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.StringUtil.getUsernameAnnotatedString
+import com.huanchengfly.tieba.post.utils.StringUtil.getUsernameAnnotatedStringCompose
 import com.huanchengfly.tieba.post.utils.appPreferences
 import com.ramcosta.composedestinations.annotation.DeepLink
 import com.ramcosta.composedestinations.annotation.Destination
@@ -262,7 +263,7 @@ private fun StoreItem(
                 },
                 name = {
                     Text(
-                        text = getUsernameAnnotatedString(
+                        text = getUsernameAnnotatedStringCompose(
                             LocalContext.current,
                             info.author.name ?: "",
                             info.author.nameShow,

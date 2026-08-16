@@ -203,7 +203,7 @@ fun SearchThreadUserHeader(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
+                text = StringUtil.getUsernameAnnotatedStringCompose(
                     LocalContext.current,
                     user.userName.orEmpty(),
                     user.showNickname,

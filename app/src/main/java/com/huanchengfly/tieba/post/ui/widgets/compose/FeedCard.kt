@@ -131,7 +131,7 @@ private fun UserHeader(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
+                text = StringUtil.getUsernameAnnotatedStringCompose(
                     context = LocalContext.current,
                     username = user.get { name },
                     nickname = user.get { nameShow },
@@ -182,7 +182,7 @@ fun UserHeader(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
+                text = StringUtil.getUsernameAnnotatedStringCompose(
                     context = LocalContext.current,
                     username = name,
                     nickname = nameShow,

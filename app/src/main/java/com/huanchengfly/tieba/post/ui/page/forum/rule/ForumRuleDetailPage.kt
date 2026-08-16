@@ -121,7 +121,7 @@ fun ForumRuleDetailPage(
                             },
                             name = {
                                 Text(
-                                    text = StringUtil.getUsernameAnnotatedString(
+                                    text = StringUtil.getUsernameAnnotatedStringCompose(
                                         LocalContext.current,
                                         it.get { user_name },
                                         it.get { name_show },

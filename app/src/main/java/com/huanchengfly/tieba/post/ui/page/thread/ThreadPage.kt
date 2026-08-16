@@ -1856,7 +1856,7 @@ fun PostCard(
                             },
                             name = {
                                 UserNameText(
-                                    userName = StringUtil.getUsernameAnnotatedString(
+                                    userName = StringUtil.getUsernameAnnotatedStringCompose(
                                         LocalContext.current,
                                         author.name,
                                         author.nameShow,

@@ -102,6 +102,13 @@ object StringUtil {
         color: Color = Color.Unspecified,
         sex: Int = 0
     ): AnnotatedString {
+        if (sex != 0) {
+            UserGenderCache.putSex(username, sex)
+        }
+        val genderInfo = UserGenderCache.getGenderInfo(username)
+        val finalSex = if (sex != 0) sex else genderInfo.sex
+        val isChanged = genderInfo.isChanged
+
         val showBoth = App.isInitialized && context.appPreferences.showBothUsernameAndNickname
         return buildAnnotatedString {
             if (showBoth && !nickname.isNullOrBlank() && username != nickname && username.isNotBlank()) {
@@ -113,16 +120,34 @@ object StringUtil {
                 append(nickname ?: username)
             }
 
-            if (sex == 1) {
-                withStyle(SpanStyle(color = Color.Blue)) {
+            if (finalSex == 1) {
+                withStyle(SpanStyle(color = Color(0xFF2196F3))) {
                     append(" ♂")
+                    if (isChanged) append("✨")
                 }
-            } else if (sex == 2) {
-                withStyle(SpanStyle(color = Color.Red)) {
+            } else if (finalSex == 2) {
+                withStyle(SpanStyle(color = Color(0xFFF44336))) {
                     append(" ♀")
+                    if (isChanged) append("✨")
                 }
             }
         }
+    }
+
+    @androidx.compose.runtime.Composable
+    @Stable
+    fun getUsernameAnnotatedStringCompose(
+        context: Context,
+        username: String,
+        nickname: String?,
+        color: Color = Color.Unspecified,
+        sex: Int = 0
+    ): AnnotatedString {
+        // Observe this state so Jetpack Compose automatically re-evaluates
+        // this function when the cache gets updated anywhere in the app
+        val updateCount = UserGenderCache.updateCount
+        
+        return getUsernameAnnotatedString(context, username, nickname, color, sex)
     }
 
     @OptIn(ExperimentalTextApi::class)

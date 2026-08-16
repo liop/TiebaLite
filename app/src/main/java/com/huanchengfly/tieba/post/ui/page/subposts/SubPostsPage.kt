@@ -638,7 +638,7 @@ private fun SubPostItem(
                             },
                             name = {
                                 UserNameText(
-                                    userName = StringUtil.getUsernameAnnotatedString(
+                                    userName = StringUtil.getUsernameAnnotatedStringCompose(
                                         LocalContext.current,
                                         author.get { name },
                                         author.get { nameShow },
