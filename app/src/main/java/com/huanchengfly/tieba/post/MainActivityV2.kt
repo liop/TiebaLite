@@ -11,8 +11,6 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.AnimationSpec
@@ -120,6 +118,7 @@ import com.ramcosta.composedestinations.utils.currentDestinationFlow
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -157,7 +156,6 @@ fun rememberBottomSheetNavigator(
 
 @AndroidEntryPoint
 class MainActivityV2 : BaseComposeActivity() {
-    private val handler = Handler(Looper.getMainLooper())
     private val newMessageReceiver: BroadcastReceiver = NewMessageReceiver()
 
     private val notificationCountFlow: MutableSharedFlow<Int> =
@@ -307,9 +305,6 @@ class MainActivityV2 : BaseComposeActivity() {
             val jobScheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             jobScheduler.schedule(builder.build())
         }
-        handler.postDelayed({
-            requestNotificationPermission()
-        }, 100)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -321,6 +316,10 @@ class MainActivityV2 : BaseComposeActivity() {
             ClientUtils.setActiveTimestamp()
         }
         intent?.let { checkIntent(it) }
+        launch {
+            delay(100)
+            requestNotificationPermission()
+        }
     }
 
     override fun onCreateContent(systemUiController: SystemUiController) {
