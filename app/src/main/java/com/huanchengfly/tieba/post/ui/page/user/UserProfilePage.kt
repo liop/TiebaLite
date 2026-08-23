@@ -1,5 +1,7 @@
 package com.huanchengfly.tieba.post.ui.page.user
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -111,13 +113,19 @@ import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
 import com.huanchengfly.tieba.post.utils.TiebaUtil
 import com.huanchengfly.tieba.post.utils.UserGenderCache
 import com.huanchengfly.tieba.post.utils.UserRemarkManager
+import com.huanchengfly.tieba.post.utils.UserPostArchiveManager
 import com.huanchengfly.tieba.post.utils.UserNoteManager
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
@@ -249,6 +257,25 @@ private fun UserProfileToolbar(
     val context = LocalContext.current
     val remarkDialogState = rememberDialogState()
     val noteDialogState = rememberDialogState()
+    val coroutineScope = rememberCoroutineScope()
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        coroutineScope.launch(Dispatchers.IO) {
+            val result = runCatching {
+                context.contentResolver.openOutputStream(uri)?.use {
+                    UserPostArchiveManager.syncAndExport(user.get { id }, it)
+                } ?: error("无法写入导出文件")
+            }
+            withContext(Dispatchers.Main) {
+                result.fold(
+                    onSuccess = { context.toastShort(context.getString(R.string.toast_user_posts_export_success, it)) },
+                    onFailure = { context.toastShort(context.getString(R.string.toast_user_posts_export_failed, it.message ?: "未知错误")) }
+                )
+            }
+        }
+    }
 
     Toolbar(
         title = {
@@ -267,6 +294,16 @@ private fun UserProfileToolbar(
             user.takeUnless { isSelf }?.let {
                 ClickMenu(
                     menuContent = {
+                        DropdownMenuItem(
+                            onClick = {
+                                exportLauncher.launch(
+                                    "TiebaLite-user-" + user.get { id } + "-" +
+                                        SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".json"
+                                )
+                            }
+                        ) {
+                            Text(text = stringResource(id = R.string.menu_export_user_posts))
+                        }
                         DropdownMenuItem(
                             onClick = { remarkDialogState.show() }
                         ) {

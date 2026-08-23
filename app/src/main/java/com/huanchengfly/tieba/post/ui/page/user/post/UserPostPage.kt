@@ -337,8 +337,33 @@ fun UserPostItem(
     onClickOriginThread: (threadId: Long) -> Unit = {},
 ) {
     val item = post.data
-    if (post.isThread) {
-        FeedCard(
+    val archived = post.archived
+    Column {
+        if (post.isDeleted || archived != null) {
+            Text(
+                text = stringResource(id = R.string.text_post_deleted),
+                color = ExtendedTheme.colors.textSecondary,
+                style = MaterialTheme.typography.caption,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        if (archived != null) {
+            Card(
+                content = {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(text = archived.content, style = MaterialTheme.typography.body1)
+                        Text(
+                            text = archived.title,
+                            style = MaterialTheme.typography.body2,
+                            color = ExtendedTheme.colors.textSecondary,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                },
+                modifier = modifier.clickable { onClick(archived.threadId, archived.postId, false) },
+            )
+        } else if (post.isThread) {
+            FeedCard(
             item = item,
             onClick = { onClick(it.thread_id, null, false) },
             onAgree = onAgree,
@@ -412,5 +437,6 @@ fun UserPostItem(
             modifier = modifier,
             contentPadding = PaddingValues(0.dp),
         )
+        }
     }
 }

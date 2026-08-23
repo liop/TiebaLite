@@ -6,6 +6,7 @@ import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.AgreeBean
 import com.huanchengfly.tieba.post.api.models.protos.PostInfoList
+import com.huanchengfly.tieba.post.models.database.UserPostArchive
 import com.huanchengfly.tieba.post.api.models.protos.abstractText
 import com.huanchengfly.tieba.post.api.models.protos.updateAgreeStatus
 import com.huanchengfly.tieba.post.api.models.protos.userPost.UserPostResponse
@@ -19,6 +20,7 @@ import com.huanchengfly.tieba.post.arch.UiEvent
 import com.huanchengfly.tieba.post.arch.UiIntent
 import com.huanchengfly.tieba.post.arch.UiState
 import com.huanchengfly.tieba.post.arch.wrapImmutable
+import com.huanchengfly.tieba.post.utils.UserPostArchiveManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -72,10 +74,12 @@ class UserPostViewModel @Inject constructor() :
                 .map<UserPostResponse, UserPostPartialChange.Refresh> {
                     checkNotNull(it.data_)
                     val postList = it.data_.post_list
+                    UserPostArchiveManager.archive(uid, isThread, postList)
                     UserPostPartialChange.Refresh.Success(
                         currentPage = 1,
                         hasMore = postList.isNotEmpty(),
                         posts = postList,
+                        archived = UserPostArchiveManager.deleted(uid, isThread),
                         hidePost = it.data_.hide_post == 1
                     )
                 }
@@ -88,6 +92,7 @@ class UserPostViewModel @Inject constructor() :
                 .map<UserPostResponse, UserPostPartialChange.LoadMore> {
                     checkNotNull(it.data_)
                     val postList = it.data_.post_list
+                    UserPostArchiveManager.archive(uid, isThread, postList)
                     UserPostPartialChange.LoadMore.Success(
                         currentPage = page + 1,
                         hasMore = postList.isNotEmpty(),
@@ -145,9 +150,9 @@ sealed interface UserPostPartialChange : PartialChange<UserPostUiState> {
             )
 
             is Success -> {
-                val uniquePosts = posts.distinctBy {
-                    "${it.thread_id}_${it.post_id}"
-                }.toData()
+                val uniquePosts = (posts.toData() + archived.toArchiveData()).distinctBy {
+                    "${it.data.get { thread_id }}_${it.data.get { post_id }}"
+                }
                 oldState.copy(
                     isRefreshing = false,
                     error = null,
@@ -170,6 +175,7 @@ sealed interface UserPostPartialChange : PartialChange<UserPostUiState> {
             val currentPage: Int,
             val hasMore: Boolean,
             val posts: List<PostInfoList>,
+            val archived: List<UserPostArchive>,
             val hidePost: Boolean,
         ) : Refresh()
 
@@ -318,8 +324,10 @@ private fun List<PostInfoList>.toData(): ImmutableList<PostListItemData> {
 @Immutable
 data class PostListItemData(
     val data: ImmutableHolder<PostInfoList>,
+    val archived: UserPostArchive? = null,
 //    val blocked: Boolean,
     val isThread: Boolean = data.get { is_thread } == 1,
+    val isDeleted: Boolean = data.get { is_post_deleted } == 1,
     val contents: ImmutableList<PostContentData> = persistentListOf(),
 )
 
@@ -330,3 +338,14 @@ data class PostContentData(
     val postId: Long,
     val isSubPost: Boolean,
 )
+private fun List<UserPostArchive>.toArchiveData(): ImmutableList<PostListItemData> = map { archive ->
+    PostListItemData(
+        data = PostInfoList(
+            forum_id = archive.forumId, thread_id = archive.threadId, post_id = archive.postId,
+            is_thread = if (archive.isThread) 1 else 0, forum_name = archive.forumName,
+            title = archive.title, user_name = archive.userName, create_time = archive.createTime.toInt(),
+        ).wrapImmutable(),
+        archived = archive,
+        contents = listOf(PostContentData(archive.content, archive.createTime, archive.postId, false)).toImmutableList(),
+    )
+}.toImmutableList()
