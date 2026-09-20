@@ -17,6 +17,8 @@ val isSelfBuild = isCI.isNullOrEmpty() || !isCI.equals("true", ignoreCase = true
 val applicationVersionCode = property.versionCode
 var applicationVersionName = property.versionName
 val isPerVersion = property.isPreRelease
+val aiAnalysisBaseUrl = providers.gradleProperty("AI_ANALYSIS_BASE_URL").orElse("")
+val aiAnalysisToken = providers.gradleProperty("AI_ANALYSIS_TOKEN").orElse("")
 if (isPerVersion) {
     applicationVersionName += "-${property.preReleaseName}.${property.preReleaseVer}"
 }
@@ -49,9 +51,12 @@ android {
             useSupportLibrary = true
         }
         manifestPlaceholders["is_self_build"] = "$isSelfBuild"
+        buildConfigField("String", "AI_ANALYSIS_BASE_URL", "\"${aiAnalysisBaseUrl.get()}\"")
+        buildConfigField("String", "AI_ANALYSIS_TOKEN", "\"${aiAnalysisToken.get()}\"")
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     signingConfigs {
         if (property.keystore.file.isNotBlank()) {

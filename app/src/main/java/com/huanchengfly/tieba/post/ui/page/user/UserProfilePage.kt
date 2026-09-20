@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ProvideTextStyle
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.NoAccounts
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.runtime.Composable
@@ -82,6 +84,8 @@ import com.huanchengfly.tieba.post.toastShort
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.common.windowsizeclass.WindowWidthSizeClass
 import com.huanchengfly.tieba.post.ui.page.ProvideNavigator
+import com.huanchengfly.tieba.post.ui.page.LocalNavigator
+import com.huanchengfly.tieba.post.ui.page.destinations.UserContentAnalysisPageDestination
 import com.huanchengfly.tieba.post.ui.page.user.edit.EditProfileActivity
 import com.huanchengfly.tieba.post.ui.page.user.likeforum.UserLikeForumPage
 import com.huanchengfly.tieba.post.ui.page.user.post.UserPostPage
@@ -242,6 +246,7 @@ private fun UserProfileToolbar(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
+    val navigator = LocalNavigator.current
 
     Toolbar(
         title = {
@@ -257,6 +262,16 @@ private fun UserProfileToolbar(
             BackNavigationIcon(onBackPressed = onBack)
         },
         actions = {
+            IconButton(
+                onClick = {
+                    navigator.navigate(UserContentAnalysisPageDestination(user.get { id }))
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Insights,
+                    contentDescription = stringResource(R.string.desc_ai_content_analysis),
+                )
+            }
             user.takeUnless { isSelf }?.let {
                 ClickMenu(
                     menuContent = {

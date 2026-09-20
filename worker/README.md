@@ -1,0 +1,24 @@
+# TiebaLite AI content analysis worker
+
+This Worker keeps the model credential and prompt policy outside the APK. It currently uses a
+Cloudflare Workers AI binding. A later Gemini provider can implement the same JSON response contract
+without changing the Android UI.
+
+## Deploy
+
+```bash
+npm install
+npx wrangler secret put APP_TOKEN
+npm run deploy
+```
+
+Then add these values to `~/.gradle/gradle.properties` (or pass them with `-P`):
+
+```properties
+AI_ANALYSIS_BASE_URL=https://tiebalite-content-analysis.<subdomain>.workers.dev
+AI_ANALYSIS_TOKEN=<the same APP_TOKEN>
+```
+
+`APP_TOKEN` only limits casual abuse; a token embedded in an APK is extractable. For a public release,
+replace it with user authentication plus server-side rate limiting. Never put a Cloudflare or Gemini
+API key in the Android project.

@@ -1,4 +1,15 @@
 <resources>
+    <string name="title_ai_content_analysis">AI 内容分析</string>
+    <string name="desc_ai_content_analysis">分析公开发言中的话题与表达特征</string>
+    <string name="ai_analysis_notice">仅分析公开内容，不代表真实人格；不推断敏感属性或心理疾病。</string>
+    <string name="ai_analysis_start">开始分析</string>
+    <string name="ai_analysis_retry">重新分析</string>
+    <string name="ai_analysis_collecting">正在整理公开发言…</string>
+    <string name="ai_analysis_not_configured">尚未配置 AI 服务地址。请在 Gradle 属性中设置 AI_ANALYSIS_BASE_URL。</string>
+    <string name="ai_analysis_topics">常见话题</string>
+    <string name="ai_analysis_style">表达风格</string>
+    <string name="ai_analysis_patterns">内容规律</string>
+    <string name="ai_analysis_evidence">依据</string>
     <string name="app_name">贴吧 Lite</string>
     <string name="title_notifications">消息</string>
     <string name="title_explore">动态</string>
