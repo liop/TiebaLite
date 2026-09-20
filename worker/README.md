@@ -7,10 +7,15 @@ without changing the Android UI.
 ## Deploy
 
 ```bash
-npm install
+npm ci
+npm run typecheck
+npm run build
 npx wrangler secret put APP_TOKEN
 npm run deploy
 ```
+
+`npm run build` performs a local Wrangler dry run and writes the deployable bundle to `dist/`
+without changing the remote Worker.
 
 Then add these values to `~/.gradle/gradle.properties` (or pass them with `-P`):
 
