@@ -3,6 +3,12 @@
   "name": "tiebalite-content-analysis",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
+  "routes": [
+    {
+      "pattern": "tiebalite-content-analysis.liop.xyz",
+      "custom_domain": true
+    }
+  ],
   "ai": {
     "binding": "AI"
   },

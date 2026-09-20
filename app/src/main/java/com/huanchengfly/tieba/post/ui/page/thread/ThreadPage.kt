@@ -132,6 +132,7 @@ import com.huanchengfly.tieba.post.ui.page.destinations.ForumPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ReplyPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.SubPostsSheetPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.UserContentAnalysisPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestination
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
@@ -985,6 +986,41 @@ fun ThreadPage(
                     CopyTextDialogPageDestination(it)
                 )
             },
+            onMenuAnalyzeClick = { post ->
+                val postAuthor = post.author
+                navigator.navigate(
+                    UserContentAnalysisPageDestination(
+                        uid = postAuthor?.id ?: post.author_id,
+                        focusPostId = post.id,
+                        focusThreadId = threadId,
+                        focusForumName = forum?.get { name }
+                            ?: post.from_forum?.name.orEmpty(),
+                        focusTitle = post.title.ifBlank { threadTitle },
+                        focusContent = post.content.plainText.take(1200),
+                        focusCreatedAt = post.time.toLong(),
+                        focusKind = if (post.floor <= 1) "thread" else "reply",
+                        displayName = postAuthor?.nameShow?.ifBlank { postAuthor.name }
+                            ?: postAuthor?.name.orEmpty(),
+                    )
+                )
+            },
+            onSubPostAnalyzeClick = { subPost ->
+                val subPostAuthor = subPost.author
+                navigator.navigate(
+                    UserContentAnalysisPageDestination(
+                        uid = subPostAuthor?.id ?: subPost.author_id,
+                        focusPostId = subPost.id,
+                        focusThreadId = threadId,
+                        focusForumName = forum?.get { name }.orEmpty(),
+                        focusTitle = threadTitle,
+                        focusContent = subPost.content.plainText.take(1200),
+                        focusCreatedAt = subPost.time.toLong(),
+                        focusKind = "sub_reply",
+                        displayName = subPostAuthor?.nameShow?.ifBlank { subPostAuthor.name }
+                            ?: subPostAuthor?.name.orEmpty(),
+                    )
+                )
+            },
             onMenuFavoriteClick = {
                 val isPostCollected =
                     it.id == thread?.get { collectMarkPid.toLongOrNull() }
@@ -1744,6 +1780,8 @@ fun PostCard(
     onSubPostReplyClick: ((Post, SubPostList) -> Unit)? = null,
     onOpenSubPosts: (subPostId: Long) -> Unit = {},
     onMenuCopyClick: ((String) -> Unit)? = null,
+    onMenuAnalyzeClick: ((Post) -> Unit)? = null,
+    onSubPostAnalyzeClick: ((SubPostList) -> Unit)? = null,
     onMenuFavoriteClick: ((Post) -> Unit)? = null,
     onMenuDeleteClick: ((Post) -> Unit)? = null,
 ) {
@@ -1805,6 +1843,18 @@ fun PostCard(
                         }
                     ) {
                         Text(text = stringResource(id = R.string.menu_copy))
+                    }
+                }
+                if (onMenuAnalyzeClick != null &&
+                    (post.content.plainText.isNotBlank() || post.title.isNotBlank())
+                ) {
+                    DropdownMenuItem(
+                        onClick = {
+                            onMenuAnalyzeClick(post)
+                            menuState.expanded = false
+                        }
+                    ) {
+                        Text(text = stringResource(id = R.string.menu_ai_analyze_speech))
                     }
                 }
                 DropdownMenuItem(
@@ -1957,7 +2007,8 @@ fun PostCard(
                                         onOpenSubPosts = onOpenSubPosts,
                                         onMenuCopyClick = {
                                             onMenuCopyClick?.invoke(it.content.plainText)
-                                        }
+                                        },
+                                        onMenuAnalyzeClick = onSubPostAnalyzeClick,
                                     )
                                 }
                             }
@@ -1996,6 +2047,7 @@ private fun SubPostItem(
     onReplyClick: ((SubPostList) -> Unit)?,
     onOpenSubPosts: (Long) -> Unit,
     onMenuCopyClick: ((SubPostList) -> Unit)?,
+    onMenuAnalyzeClick: ((SubPostList) -> Unit)?,
 ) {
     val context = LocalContext.current
     val navigator = LocalNavigator.current
@@ -2022,6 +2074,16 @@ private fun SubPostItem(
                     }
                 ) {
                     Text(text = stringResource(id = R.string.menu_copy))
+                }
+            }
+            if (onMenuAnalyzeClick != null && subPostList.get { content.plainText.isNotBlank() }) {
+                DropdownMenuItem(
+                    onClick = {
+                        onMenuAnalyzeClick(subPostList.get())
+                        menuState.expanded = false
+                    }
+                ) {
+                    Text(text = stringResource(id = R.string.menu_ai_analyze_speech))
                 }
             }
             DropdownMenuItem(

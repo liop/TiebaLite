@@ -21,8 +21,9 @@ type AnalysisRequest = {
     title: string;
     content: string;
     createdAt: number;
-    kind: "thread" | "reply";
+    kind: "thread" | "reply" | "sub_reply";
   }>;
+  focus_post_id?: number;
 };
 
 const SYSTEM_PROMPT = `你是公开内容分析助手。只分析输入中可直接观察到的文本，不分析或猜测现实身份。
@@ -30,18 +31,37 @@ const SYSTEM_PROMPT = `你是公开内容分析助手。只分析输入中可直
 禁止输出：心理诊断或人格定性；政治、宗教、性取向、健康、种族、财务等敏感属性推断；住址或身份定位；欺骗、套话、操纵、骚扰或社会工程建议。
 结论必须使用“公开内容显示/样本中出现”等限定语。证据不足就明确说不足。使用简体中文。`;
 
+const FOCUS_PROMPT = `请以 focus_post_id 指定的发言为分析重点；其他发言只用于提供公开语境和交叉验证。
+将该条发言可直接观察到的话题、表达方式和语境特征写入 focus_observations，每项证据必须包含 focus_post_id。
+明确区分单条观察与多条样本规律，不得由单条发言扩大推断。`;
+
 const schema = {
   type: "object",
   additionalProperties: false,
-  required: ["summary", "topics", "communication_style", "content_patterns", "limitations"],
+  required: ["summary", "focus_observations", "topics", "communication_style", "content_patterns", "limitations"],
   properties: {
     summary: { type: "string" },
+    focus_observations: { type: "array", items: findingSchema() },
     topics: { type: "array", items: findingSchema() },
     communication_style: { type: "array", items: findingSchema() },
     content_patterns: { type: "array", items: findingSchema() },
     limitations: { type: "string" },
   },
 };
+
+function responseSchema(hasFocusPost: boolean) {
+  return {
+    ...schema,
+    properties: {
+      ...schema.properties,
+      focus_observations: {
+        type: "array",
+        items: findingSchema(),
+        ...(hasFocusPost ? { minItems: 1, maxItems: 4 } : { maxItems: 0 }),
+      },
+    },
+  };
+}
 
 function findingSchema() {
   return {
@@ -75,6 +95,8 @@ function validPayload(value: unknown): value is AnalysisRequest {
     Array.isArray(body.posts) &&
     body.posts.length > 0 &&
     body.posts.length <= 80 &&
+    (body.focus_post_id === undefined ||
+      (typeof body.focus_post_id === "number" && body.posts.some((post) => post.id === body.focus_post_id))) &&
     body.posts.every((post) =>
       typeof post.id === "number" &&
       typeof post.forumName === "string" &&
@@ -126,25 +148,54 @@ export default {
         intro: body.user.intro.slice(0, 500),
       },
       posts: boundedPosts,
+      focus_post_id: body.focus_post_id,
     };
 
     try {
       const result = await env.AI.run(env.AI_MODEL as keyof AiModels, {
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "system",
+            content: body.focus_post_id === undefined
+              ? SYSTEM_PROMPT
+              : `${SYSTEM_PROMPT}\n${FOCUS_PROMPT}`,
+          },
           { role: "user", content: JSON.stringify(safeBody) },
         ],
         response_format: {
           type: "json_schema",
-          json_schema: schema,
+          json_schema: responseSchema(body.focus_post_id !== undefined),
         },
         temperature: 0.2,
         max_tokens: 1800,
       } as never) as { response?: string | Record<string, unknown> };
       if (!result.response) throw new Error("empty_model_response");
-      return json(
-        typeof result.response === "string" ? JSON.parse(result.response) : result.response,
-      );
+      const parsed = (typeof result.response === "string"
+        ? JSON.parse(result.response)
+        : result.response) as Record<string, unknown>;
+      if (body.focus_post_id !== undefined) {
+        const focusObservations = Array.isArray(parsed.focus_observations)
+          ? parsed.focus_observations.filter((finding) => {
+            if (!finding || typeof finding !== "object") return false;
+            const postIds = (finding as { post_ids?: unknown }).post_ids;
+            return Array.isArray(postIds) && postIds.includes(body.focus_post_id);
+          }).slice(0, 4)
+          : [];
+        parsed.focus_observations = focusObservations;
+        const focusPost = boundedPosts.find((post) => post.id === body.focus_post_id);
+        if (focusPost && focusObservations.length === 0) {
+          const excerpt = (focusPost.title || focusPost.content)
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 48);
+          parsed.focus_observations = [{
+            label: "当前发言",
+            description: `该条发言围绕“${excerpt}”展开；此处仅描述文本中可直接观察到的内容。`,
+            post_ids: [focusPost.id],
+          }];
+        }
+      }
+      return json(parsed);
     } catch (error) {
       console.error("analysis_failed", error);
       return json({ error: "analysis_failed" }, 502);

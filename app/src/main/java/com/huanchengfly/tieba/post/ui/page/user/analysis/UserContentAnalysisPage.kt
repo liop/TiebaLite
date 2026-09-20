@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.huanchengfly.tieba.post.BuildConfig
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.ai.AnalysisFinding
+import com.huanchengfly.tieba.post.ai.PublicPostSnapshot
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.Toolbar
@@ -33,18 +34,48 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 @Composable
 fun UserContentAnalysisPage(
     uid: Long,
+    focusPostId: Long = 0L,
+    focusThreadId: Long = 0L,
+    focusForumName: String = "",
+    focusTitle: String = "",
+    focusContent: String = "",
+    focusCreatedAt: Long = 0L,
+    focusKind: String = "",
+    displayName: String = "",
     navigator: DestinationsNavigator,
     viewModel: UserContentAnalysisViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
-    LaunchedEffect(uid) {
-        if (BuildConfig.AI_ANALYSIS_BASE_URL.isNotBlank()) viewModel.analyze(uid)
+    val focusPost = if (focusPostId > 0L) {
+        PublicPostSnapshot(
+            id = focusPostId,
+            threadId = focusThreadId,
+            forumName = focusForumName,
+            title = focusTitle,
+            content = focusContent,
+            createdAt = focusCreatedAt,
+            kind = focusKind.ifBlank { "reply" },
+        )
+    } else {
+        null
+    }
+    LaunchedEffect(uid, focusPostId) {
+        if (BuildConfig.AI_ANALYSIS_BASE_URL.isNotBlank()) {
+            viewModel.analyze(uid, displayName, focusPost)
+        }
     }
 
     MyScaffold(
         topBar = {
             Toolbar(
-                title = { Text(stringResource(R.string.title_ai_content_analysis)) },
+                title = {
+                    Text(
+                        stringResource(
+                            if (focusPost == null) R.string.title_ai_content_analysis
+                            else R.string.title_ai_speech_analysis
+                        )
+                    )
+                },
                 navigationIcon = { BackNavigationIcon { navigator.navigateUp() } },
             )
         }
@@ -53,7 +84,7 @@ fun UserContentAnalysisPage(
             UserContentAnalysisState.Idle -> AnalysisMessage(
                 message = stringResource(R.string.ai_analysis_not_configured),
                 button = stringResource(R.string.ai_analysis_start),
-                onClick = { viewModel.analyze(uid) },
+                onClick = { viewModel.analyze(uid, displayName, focusPost) },
                 modifier = Modifier.padding(padding),
             )
             UserContentAnalysisState.Loading -> Column(
@@ -70,14 +101,31 @@ fun UserContentAnalysisPage(
             is UserContentAnalysisState.Error -> AnalysisMessage(
                 message = current.message,
                 button = stringResource(R.string.ai_analysis_retry),
-                onClick = { viewModel.analyze(uid) },
+                onClick = { viewModel.analyze(uid, displayName, focusPost) },
                 modifier = Modifier.padding(padding),
             )
             is UserContentAnalysisState.Success -> LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item { Text(current.result.summary, style = MaterialTheme.typography.body1, modifier = Modifier.padding(top = 16.dp)) }
+                if (current.fromCache) {
+                    item {
+                        Text(
+                            stringResource(R.string.ai_analysis_cached),
+                            color = MaterialTheme.colors.primary,
+                            style = MaterialTheme.typography.caption,
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                    }
+                }
+                item {
+                    Text(
+                        current.result.summary,
+                        style = MaterialTheme.typography.body1,
+                        modifier = Modifier.padding(top = if (current.fromCache) 0.dp else 16.dp),
+                    )
+                }
+                findingSection(R.string.ai_analysis_focus, current.result.focusObservations)
                 findingSection(R.string.ai_analysis_topics, current.result.topics)
                 findingSection(R.string.ai_analysis_style, current.result.communicationStyle)
                 findingSection(R.string.ai_analysis_patterns, current.result.contentPatterns)
@@ -90,8 +138,20 @@ fun UserContentAnalysisPage(
                     Text(
                         stringResource(R.string.ai_analysis_notice),
                         style = MaterialTheme.typography.caption,
-                        modifier = Modifier.padding(bottom = 24.dp),
                     )
+                    Button(
+                        onClick = {
+                            viewModel.analyze(
+                                uid = uid,
+                                displayName = displayName,
+                                focusPost = focusPost,
+                                forceRefresh = true,
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 24.dp),
+                    ) {
+                        Text(stringResource(R.string.ai_analysis_refresh))
+                    }
                 }
             }
         }

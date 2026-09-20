@@ -14,13 +14,15 @@ npx wrangler secret put APP_TOKEN
 npm run deploy
 ```
 
+`APP_TOKEN` must be stored with `wrangler secret put`; do not add it to `vars` or commit it.
+
 `npm run build` performs a local Wrangler dry run and writes the deployable bundle to `dist/`
 without changing the remote Worker.
 
 Then add these values to `~/.gradle/gradle.properties` (or pass them with `-P`):
 
 ```properties
-AI_ANALYSIS_BASE_URL=https://tiebalite-content-analysis.<subdomain>.workers.dev
+AI_ANALYSIS_BASE_URL=https://tiebalite-content-analysis.liop.xyz
 AI_ANALYSIS_TOKEN=<the same APP_TOKEN>
 ```
 

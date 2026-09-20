@@ -46,6 +46,7 @@ import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.models.protos.SubPostList
 import com.huanchengfly.tieba.post.api.models.protos.User
 import com.huanchengfly.tieba.post.api.models.protos.bawuType
+import com.huanchengfly.tieba.post.api.models.protos.plainText
 import com.huanchengfly.tieba.post.arch.ImmutableHolder
 import com.huanchengfly.tieba.post.arch.collectPartialAsState
 import com.huanchengfly.tieba.post.arch.onEvent
@@ -57,6 +58,7 @@ import com.huanchengfly.tieba.post.ui.page.LocalNavigator
 import com.huanchengfly.tieba.post.ui.page.ProvideNavigator
 import com.huanchengfly.tieba.post.ui.page.destinations.CopyTextDialogPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.UserContentAnalysisPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestination
 import com.huanchengfly.tieba.post.ui.page.reply.ReplyArgs
 import com.huanchengfly.tieba.post.ui.page.reply.ReplyDialog
@@ -456,6 +458,26 @@ internal fun SubPostsContent(
                                             CopyTextDialogPageDestination(it)
                                         )
                                     },
+                                    onMenuAnalyzeClick = { selectedPost ->
+                                        val selectedAuthor = selectedPost.author
+                                        navigator.navigate(
+                                            UserContentAnalysisPageDestination(
+                                                uid = selectedAuthor?.id ?: selectedPost.author_id,
+                                                focusPostId = selectedPost.id,
+                                                focusThreadId = threadId,
+                                                focusForumName = forum?.get { name }
+                                                    ?: selectedPost.from_forum?.name.orEmpty(),
+                                                focusTitle = selectedPost.title.ifBlank {
+                                                    thread?.get { title }.orEmpty()
+                                                },
+                                                focusContent = selectedPost.content.plainText.take(1200),
+                                                focusCreatedAt = selectedPost.time.toLong(),
+                                                focusKind = if (selectedPost.floor <= 1) "thread" else "reply",
+                                                displayName = selectedAuthor?.nameShow?.ifBlank { selectedAuthor.name }
+                                                    ?: selectedAuthor?.name.orEmpty(),
+                                            )
+                                        )
+                                    },
                                 ) {
                                     deleteSubPost = null
                                     confirmDeleteDialogState.show()
@@ -524,6 +546,23 @@ internal fun SubPostsContent(
                                 )
 //                                TiebaUtil.copyText(context, it)
                             },
+                            onMenuAnalyzeClick = { selectedPost ->
+                                val selectedAuthor = selectedPost.author
+                                navigator.navigate(
+                                    UserContentAnalysisPageDestination(
+                                        uid = selectedAuthor?.id ?: selectedPost.author_id,
+                                        focusPostId = selectedPost.id,
+                                        focusThreadId = threadId,
+                                        focusForumName = forum?.get { name }.orEmpty(),
+                                        focusTitle = thread?.get { title }.orEmpty(),
+                                        focusContent = selectedPost.content.plainText.take(1200),
+                                        focusCreatedAt = selectedPost.time.toLong(),
+                                        focusKind = "sub_reply",
+                                        displayName = selectedAuthor?.nameShow?.ifBlank { selectedAuthor.name }
+                                            ?: selectedAuthor?.name.orEmpty(),
+                                    )
+                                )
+                            },
                             onMenuDeleteClick = {
                                 deleteSubPost = it.wrapImmutable()
                                 confirmDeleteDialogState.show()
@@ -557,6 +596,7 @@ private fun SubPostItem(
     onAgree: (SubPostList) -> Unit = {},
     onReplyClick: (SubPostList) -> Unit = {},
     onMenuCopyClick: ((String) -> Unit)? = null,
+    onMenuAnalyzeClick: ((SubPostList) -> Unit)? = null,
     onMenuDeleteClick: ((SubPostList) -> Unit)? = null,
 ) {
     val (subPost, contentRenders, blocked) = item
@@ -600,6 +640,16 @@ private fun SubPostItem(
                         }
                     ) {
                         Text(text = stringResource(id = R.string.menu_copy))
+                    }
+                }
+                if (onMenuAnalyzeClick != null && subPost.get { content.plainText.isNotBlank() }) {
+                    DropdownMenuItem(
+                        onClick = {
+                            onMenuAnalyzeClick(subPost.get())
+                            menuState.expanded = false
+                        }
+                    ) {
+                        Text(text = stringResource(id = R.string.menu_ai_analyze_speech))
                     }
                 }
                 DropdownMenuItem(

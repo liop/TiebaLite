@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
 data class ContentAnalysisRequest(
     val user: PublicUserSnapshot,
     val posts: List<PublicPostSnapshot>,
+    @SerialName("focus_post_id") val focusPostId: Long? = null,
 )
 
 @Serializable
@@ -33,6 +34,7 @@ data class PublicPostSnapshot(
 @Serializable
 data class ContentAnalysisResponse(
     val summary: String,
+    @SerialName("focus_observations") val focusObservations: List<AnalysisFinding> = emptyList(),
     val topics: List<AnalysisFinding> = emptyList(),
     @SerialName("communication_style") val communicationStyle: List<AnalysisFinding> = emptyList(),
     @SerialName("content_patterns") val contentPatterns: List<AnalysisFinding> = emptyList(),
