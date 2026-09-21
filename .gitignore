@@ -45,6 +45,9 @@ captures/
 *.jks
 
 keystore.properties
+.env
+.env.local
+/dist/
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild
