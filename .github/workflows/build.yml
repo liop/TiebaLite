@@ -25,10 +25,20 @@ jobs:
           gradle-home-cache-cleanup: true
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew :app:assembleDebug
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload Debug APK to Pgyer
+        if: github.event_name == 'push'
+        env:
+          PGYER_API_KEY: ${{ secrets.PGYER_API_KEY }}
+          PGYER_UPDATE_DESC: GitHub Actions 自动构建
+        run: |
+          APK_PATH="$(find app/build/outputs/apk/debug -type f -name '*.apk' ! -name '*unaligned.apk' -print -quit)"
+          test -n "$APK_PATH"
+          ./scripts/pgyer.sh upload "file:$APK_PATH"
