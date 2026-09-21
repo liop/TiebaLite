@@ -165,6 +165,7 @@ class UserContentAnalysisViewModel @Inject constructor(
                                 ?.replace(Regex("[\\p{Cc}\\p{Cf}]+"), " ")
                                 ?.trim()
                                 ?.takeIf(String::isNotEmpty)
+                                ?.take(240)
                         }
                         .firstOrNull()
                     UserContentAnalysisState.Error(

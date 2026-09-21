@@ -18,7 +18,7 @@
     <string name="ai_analysis_running_local">正在使用本地 Gemma 4 分析，首次加载可能需要较长时间…</string>
     <string name="ai_analysis_local_result">由本地 Gemma 4 生成，内容未发送到 AI 服务</string>
     <string name="ai_analysis_remote_result">由远端 AI 服务生成</string>
-    <string name="ai_local_model_title">设备端模型 · Gemma 4 E4B</string>
+    <string name="ai_local_model_title">设备端模型 · Gemma 4 E4B Abliterated</string>
     <string name="ai_local_model_unsupported">当前系统或 CPU 架构不支持 LiteRT-LM，将继续使用远端服务</string>
     <string name="ai_local_model_not_installed">未安装；安装后将优先在手机上分析</string>
     <string name="ai_local_model_importing">正在导入模型，请勿关闭应用…</string>
@@ -26,7 +26,7 @@
     <string name="ai_local_model_ready">已就绪；分析将优先使用手机 GPU，不兼容时自动回退 CPU</string>
     <string name="ai_local_model_download">下载模型</string>
     <string name="ai_local_model_import">导入 .litertlm</string>
-    <string name="ai_local_model_download_title">下载 Gemma 4 E4B？</string>
+    <string name="ai_local_model_download_title">下载 Gemma 4 E4B Abliterated？</string>
     <string name="ai_local_model_download_confirm">模型约 3.7 GB，建议连接 Wi-Fi 并保持至少 8 GB 可用空间。下载由系统下载管理器执行，可在后台继续。</string>
     <string name="title_ai_model_auto_preload">启动时后台加载本地模型</string>
     <string name="summary_ai_model_auto_preload">启动 App 后在后台预热 Gemma 4（GPU 优先），缩短首次分析等待；运行期间会占用大量内存</string>

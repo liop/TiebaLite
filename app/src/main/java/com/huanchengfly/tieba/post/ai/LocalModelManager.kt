@@ -9,15 +9,17 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 object LocalModelManager {
-    const val MODEL_NAME = "Gemma 4 E4B"
-    const val MODEL_FILE_NAME = "gemma-4-E4B-it.litertlm"
+    const val MODEL_NAME = "Gemma 4 E4B Abliterated"
+    const val MODEL_FILE_NAME = "gemma-4-E4B-it-abliterated.litertlm"
     const val MODEL_SIZE_BYTES = 3_659_530_240L
 
+    private const val LEGACY_MODEL_FILE_NAME = "gemma-4-E4B-it.litertlm"
     private const val PREFERENCES_NAME = "ai_local_model"
     private const val DOWNLOAD_ID = "download_id"
     private const val MODEL_URL =
-        "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/" +
-            "28299f30ee4d43294517a4ac93abd6163412f07f/gemma-4-E4B-it.litertlm?download=true"
+        "https://hf-mirror.com/olekk/gemma-4-E4B-it-abliterated-litert-lm/resolve/" +
+            "a4eecccd3b0ba1777660180cda60a396eedcb8aa/" +
+            "gemma-4-E4B-it-abliterated.litertlm?download=true"
 
     fun isSupported(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
@@ -70,6 +72,7 @@ object LocalModelManager {
             check(temporary.length() >= 1_000_000_000L) { "所选文件不是有效的 LiteRT-LM 模型" }
             if (target.exists() && !target.delete()) error("无法覆盖现有模型文件")
             check(temporary.renameTo(target)) { "无法保存模型文件" }
+            cleanupLegacyModel(context)
             preferences(context).edit().remove(DOWNLOAD_ID).apply()
         } finally {
             if (temporary.exists()) temporary.delete()
@@ -80,6 +83,7 @@ object LocalModelManager {
         if (!isSupported()) return LocalModelState.Unsupported
         val file = modelFile(context)
         if (file != null && file.isFile && file.length() >= 1_000_000_000L) {
+            cleanupLegacyModel(context)
             return LocalModelState.Ready(file.length())
         }
 
@@ -112,6 +116,13 @@ object LocalModelManager {
 
     private fun preferences(context: Context) =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+
+    private fun cleanupLegacyModel(context: Context) {
+        context.getExternalFilesDir("models")
+            ?.resolve(LEGACY_MODEL_FILE_NAME)
+            ?.takeIf(File::isFile)
+            ?.delete()
+    }
 }
 
 sealed interface LocalModelState {

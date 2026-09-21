@@ -74,7 +74,7 @@ object LocalContentAnalysisClient {
           "content_patterns": [{"label":"标签","description":"描述","post_ids":[1]}],
           "limitations": "样本与结论局限"
         }
-        summary 不超过 100 个汉字，limitations 不超过 60 个汉字；每类最多 2 项，label 不超过 8 个汉字，description 不超过 40 个汉字。
+        summary 不超过 80 个汉字，limitations 不超过 50 个汉字；每类最多 1 项，label 不超过 8 个汉字，description 不超过 30 个汉字。
         只引用输入中真实存在的 post id，不得推断敏感属性、人格诊断或心理疾病。不要输出思考过程。
 
         输入：$payload
