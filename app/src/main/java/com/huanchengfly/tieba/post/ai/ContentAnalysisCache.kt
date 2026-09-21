@@ -13,7 +13,7 @@ data class CachedContentAnalysis(
 
 object ContentAnalysisCache {
     private const val PREFERENCES_NAME = "ai_content_analysis_cache"
-    private const val CACHE_VERSION = "v2"
+    private const val CACHE_VERSION = "v3"
     private const val MAX_ENTRIES = 100
     private const val CACHE_TTL_MILLIS = 7L * 24 * 60 * 60 * 1000
 
@@ -22,8 +22,12 @@ object ContentAnalysisCache {
         App.INSTANCE.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
     }
 
-    fun get(uid: Long, focusPost: PublicPostSnapshot?): CachedContentAnalysis? {
-        val key = key(uid, focusPost)
+    fun get(
+        uid: Long,
+        focusPost: PublicPostSnapshot?,
+        settingsKey: String = "default",
+    ): CachedContentAnalysis? {
+        val key = key(uid, focusPost, settingsKey)
         val entry = preferences.getString(key, null)
             ?.let { serialized -> runCatching { json.decodeFromString<CacheEntry>(serialized) }.getOrNull() }
             ?: return null
@@ -39,6 +43,7 @@ object ContentAnalysisCache {
         focusPost: PublicPostSnapshot?,
         response: ContentAnalysisResponse,
         source: AnalysisSource,
+        settingsKey: String = "default",
     ) {
         val entry = CacheEntry(
             cachedAt = System.currentTimeMillis(),
@@ -46,7 +51,7 @@ object ContentAnalysisCache {
             source = source,
         )
         preferences.edit()
-            .putString(key(uid, focusPost), json.encodeToString(CacheEntry.serializer(), entry))
+            .putString(key(uid, focusPost, settingsKey), json.encodeToString(CacheEntry.serializer(), entry))
             .apply()
         prune()
     }
@@ -68,10 +73,10 @@ object ContentAnalysisCache {
         editor.apply()
     }
 
-    private fun key(uid: Long, focusPost: PublicPostSnapshot?): String = if (focusPost == null) {
-        "$CACHE_VERSION:user:$uid"
+    private fun key(uid: Long, focusPost: PublicPostSnapshot?, settingsKey: String): String = if (focusPost == null) {
+        "$CACHE_VERSION:user:$uid:$settingsKey"
     } else {
-        "$CACHE_VERSION:post:$uid:${focusPost.kind}:${focusPost.id}"
+        "$CACHE_VERSION:post:$uid:${focusPost.kind}:${focusPost.id}:$settingsKey"
     }
 
     @Serializable

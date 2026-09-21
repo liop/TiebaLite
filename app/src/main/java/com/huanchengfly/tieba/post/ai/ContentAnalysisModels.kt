@@ -53,3 +53,13 @@ data class AnalysisFinding(
     val description: String,
     @SerialName("post_ids") val postIds: List<Long> = emptyList(),
 )
+
+data class AnalysisMetrics(
+    val inputTokens: Int = 0,
+    val outputTokens: Int = 0,
+    val elapsedSeconds: Double = 0.0,
+    val timeToFirstTokenSeconds: Double = Double.NaN,
+    val prefillTokensPerSecond: Double = Double.NaN,
+    val decodeTokensPerSecond: Double = Double.NaN,
+    val backend: String = "",
+)
