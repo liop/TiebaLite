@@ -4,6 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class AnalysisSource {
+    LOCAL,
+    REMOTE,
+}
+
+@Serializable
 data class ContentAnalysisRequest(
     val user: PublicUserSnapshot,
     val posts: List<PublicPostSnapshot>,

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:tools="http://schemas.android.com/tools">
+    <!-- Calls into LiteRT-LM are guarded by API 24 checks in the application. -->
+    <uses-sdk tools:overrideLibrary="com.google.ai.edge.litertlm" />
+</manifest>

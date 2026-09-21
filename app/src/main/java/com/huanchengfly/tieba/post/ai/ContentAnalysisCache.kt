@@ -8,11 +8,12 @@ import kotlinx.serialization.json.Json
 data class CachedContentAnalysis(
     val response: ContentAnalysisResponse,
     val cachedAt: Long,
+    val source: AnalysisSource,
 )
 
 object ContentAnalysisCache {
     private const val PREFERENCES_NAME = "ai_content_analysis_cache"
-    private const val CACHE_VERSION = "v1"
+    private const val CACHE_VERSION = "v2"
     private const val MAX_ENTRIES = 100
     private const val CACHE_TTL_MILLIS = 7L * 24 * 60 * 60 * 1000
 
@@ -30,13 +31,19 @@ object ContentAnalysisCache {
             preferences.edit().remove(key).apply()
             return null
         }
-        return CachedContentAnalysis(entry.response, entry.cachedAt)
+        return CachedContentAnalysis(entry.response, entry.cachedAt, entry.source)
     }
 
-    fun put(uid: Long, focusPost: PublicPostSnapshot?, response: ContentAnalysisResponse) {
+    fun put(
+        uid: Long,
+        focusPost: PublicPostSnapshot?,
+        response: ContentAnalysisResponse,
+        source: AnalysisSource,
+    ) {
         val entry = CacheEntry(
             cachedAt = System.currentTimeMillis(),
             response = response,
+            source = source,
         )
         preferences.edit()
             .putString(key(uid, focusPost), json.encodeToString(CacheEntry.serializer(), entry))
@@ -71,5 +78,6 @@ object ContentAnalysisCache {
     private data class CacheEntry(
         val cachedAt: Long,
         val response: ContentAnalysisResponse,
+        val source: AnalysisSource,
     )
 }

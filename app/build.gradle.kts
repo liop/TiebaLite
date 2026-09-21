@@ -250,6 +250,7 @@ dependencies {
     implementation(retrofit2.converter.wire)
 
     implementation(google.gson)
+    implementation(project(":localai"))
     implementation(org.litepal.android.kotlin)
     implementation(com.jaredrummler.colorpicker)
 

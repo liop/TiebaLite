@@ -10,6 +10,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.OfflineBolt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.huanchengfly.tieba.post.BuildConfig
 import com.huanchengfly.tieba.post.R
+import com.huanchengfly.tieba.post.ai.LocalModelRuntime
 import com.huanchengfly.tieba.post.dataStore
 import com.huanchengfly.tieba.post.ui.common.prefs.PrefsScreen
 import com.huanchengfly.tieba.post.ui.common.prefs.dependNot
@@ -140,6 +142,29 @@ fun MoreSettingsPage(
                         summary = stringResource(id = R.string.tip_check_ci_update)
                     )
                 }
+            }
+            prefsItem {
+                SwitchPref(
+                    leadingIcon = {
+                        LeadingIcon {
+                            AvatarIcon(
+                                icon = Icons.Outlined.Memory,
+                                size = Sizes.Small,
+                                contentDescription = null,
+                            )
+                        }
+                    },
+                    key = LocalModelRuntime.AUTO_PRELOAD_KEY,
+                    title = stringResource(id = R.string.title_ai_model_auto_preload),
+                    defaultChecked = false,
+                    summary = stringResource(id = R.string.summary_ai_model_auto_preload),
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            if (enabled) LocalModelRuntime.preload(context)
+                            else LocalModelRuntime.release()
+                        }
+                    },
+                )
             }
             prefsItem {
                 SwitchPref(

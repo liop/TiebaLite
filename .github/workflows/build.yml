@@ -10,10 +10,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: "17"
+          # LiteRT-LM 0.17.1 publishes its Android API as Java 21 bytecode.
+          # The app modules still emit Java 11-compatible bytecode.
+          java-version: "21"
           distribution: "zulu"
           cache: gradle
 

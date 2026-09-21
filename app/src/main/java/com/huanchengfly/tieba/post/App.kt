@@ -29,6 +29,7 @@ import com.github.panpf.sketch.request.PauseLoadWhenScrollingDrawableDecodeInter
 import com.huanchengfly.tieba.post.activities.BaseActivity
 import com.huanchengfly.tieba.post.components.ClipBoardLinkDetector
 import com.huanchengfly.tieba.post.components.OAIDGetter
+import com.huanchengfly.tieba.post.ai.LocalModelRuntime
 import com.huanchengfly.tieba.post.ui.common.theme.compose.dynamicTonalPalette
 import com.huanchengfly.tieba.post.ui.common.theme.interfaces.ThemeSwitcher
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
@@ -105,6 +106,7 @@ class App : Application(), SketchFactory {
         ThemeUtils.init(ThemeDelegate)
         registerActivityLifecycleCallbacks(ClipBoardLinkDetector)
         registerActivityLifecycleCallbacks(OAIDGetter)
+        LocalModelRuntime.preloadOnAppStart(this)
         thread {
             BlockManager.init()
             EmoticonManager.init(this@App)
