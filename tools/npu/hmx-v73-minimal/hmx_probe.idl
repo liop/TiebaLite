@@ -1,0 +1,10 @@
+#include "AEEStdDef.idl"
+#include "remote.idl"
+
+interface hmx_probe : remote_handle64 {
+    AEEResult run(in uint32 mode,
+                  rout uint32 act0, rout uint32 weight0,
+                  rout uint32 bias0, rout uint32 output0,
+                  rout uint32 output1, rout uint32 bias_dump0,
+                  rout uint32 hmx_lock_result);
+};

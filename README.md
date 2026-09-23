@@ -10,6 +10,11 @@
 
 贴吧 Lite 是一个**非官方**的贴吧客户端。
 
+## AI 运行时文档
+
+- [LiteRT-LM Android OpenCL 构建说明](localai/libs/README.md)
+- [HTP v73 端侧模型调研与 adb 实测记录](docs/htp-v73-model-evaluation.md)
+
 ## 蒲公英上传
 
 复制环境变量模板并填写自己的 API Key：

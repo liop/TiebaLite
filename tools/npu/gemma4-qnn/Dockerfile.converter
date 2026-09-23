@@ -1,0 +1,11 @@
+FROM qairt-py310-amd64
+
+RUN python -m pip install --no-cache-dir \
+    numpy==1.26.4 tflite decorator scipy networkx protobuf onnx \
+    psutil attrs pyyaml pytest pandas
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN curl -fsSL https://deb.debian.org/debian/pool/main/l/llvm-toolchain-14/libllvm14_14.0.6-12_amd64.deb -o /tmp/libllvm14.deb \
+    && echo 'cd986403cfe53f47c41b80667f6b344c40fe35de4c5081dad9358b4c77cf64a8  /tmp/libllvm14.deb' | sha256sum -c - \
+    && dpkg -x /tmp/libllvm14.deb /opt/llvm14 \
+    && rm /tmp/libllvm14.deb
+ENV LD_LIBRARY_PATH=/opt/llvm14/usr/lib/x86_64-linux-gnu
