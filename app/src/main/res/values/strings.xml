@@ -7,6 +7,7 @@
     <string name="ai_analysis_start">开始分析</string>
     <string name="ai_analysis_retry">重新分析</string>
     <string name="ai_analysis_ready">可以开始分析；右上角可调整采样大小、上下文与系统提示词。</string>
+    <string name="ai_analysis_local_not_ready">已选择本地模型，请先下载或导入模型。</string>
     <string name="ai_analysis_collecting">正在整理公开发言…</string>
     <string name="ai_analysis_not_configured">尚未配置 AI 服务地址。请在 Gradle 属性中设置 AI_ANALYSIS_BASE_URL。</string>
     <string name="ai_analysis_topics">常见话题</string>
@@ -23,6 +24,9 @@
     <string name="ai_analysis_waiting_first_token">正在等待首个 token…</string>
     <string name="ai_analysis_stop">停止生成</string>
     <string name="ai_analysis_settings">分析设置</string>
+    <string name="ai_analysis_provider">运行方式</string>
+    <string name="ai_analysis_provider_remote">远程 Worker</string>
+    <string name="ai_analysis_provider_local">本地模型</string>
     <string name="ai_analysis_max_posts">采样帖子数</string>
     <string name="ai_analysis_max_chars_per_post">单帖最大字符数</string>
     <string name="ai_analysis_context_window">上下文窗口</string>
@@ -32,11 +36,11 @@
     <string name="ai_analysis_restore_prompt">恢复默认提示词</string>
     <string name="ai_analysis_save_settings">保存</string>
     <string name="ai_local_model_title">设备端模型 · Gemma 4 E4B Abliterated</string>
-    <string name="ai_local_model_unsupported">当前系统或 CPU 架构不支持 LiteRT-LM，将继续使用远端服务</string>
-    <string name="ai_local_model_not_installed">未安装；安装后将优先在手机上分析</string>
+    <string name="ai_local_model_unsupported">当前系统或 CPU 架构不支持 LiteRT-LM，请在分析设置中使用远程 Worker</string>
+    <string name="ai_local_model_not_installed">未安装；安装后可在分析设置中切换使用</string>
     <string name="ai_local_model_importing">正在导入模型，请勿关闭应用…</string>
     <string name="ai_local_model_downloading">正在下载：%1$d%%</string>
-    <string name="ai_local_model_ready">已就绪；分析将优先使用手机 GPU，不兼容时自动回退 CPU</string>
+    <string name="ai_local_model_ready">已就绪；选择本地模型后将优先使用手机 GPU，不兼容时自动回退 CPU</string>
     <string name="ai_local_model_download">下载模型</string>
     <string name="ai_local_model_import">导入 .litertlm</string>
     <string name="ai_local_model_download_title">下载 Gemma 4 E4B Abliterated？</string>

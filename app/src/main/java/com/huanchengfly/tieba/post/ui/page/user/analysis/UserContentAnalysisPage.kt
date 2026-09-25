@@ -76,6 +76,10 @@ fun UserContentAnalysisPage(
     val state by viewModel.state.collectAsState()
     val localModelState by viewModel.localModelState.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val providerReady = when (settings.provider) {
+        AnalysisSource.REMOTE -> BuildConfig.AI_ANALYSIS_BASE_URL.isNotBlank()
+        AnalysisSource.LOCAL -> localModelState is LocalModelState.Ready
+    }
     var showDownloadConfirm by remember { mutableStateOf(false) }
     var showAnalysisSettings by remember { mutableStateOf(false) }
     val importModelLauncher = rememberLauncherForActivityResult(
@@ -94,8 +98,8 @@ fun UserContentAnalysisPage(
     } else {
         null
     }
-    LaunchedEffect(uid, focusPostId, localModelState is LocalModelState.Ready) {
-        if (BuildConfig.AI_ANALYSIS_BASE_URL.isNotBlank() || localModelState is LocalModelState.Ready) {
+    LaunchedEffect(uid, focusPostId, settings.provider, providerReady) {
+        if (providerReady) {
             viewModel.analyze(uid, displayName, focusPost)
         }
     }
@@ -132,9 +136,10 @@ fun UserContentAnalysisPage(
             when (val current = state) {
                 UserContentAnalysisState.Idle -> AnalysisMessage(
                     message = stringResource(
-                        if (localModelState is LocalModelState.Ready ||
-                            BuildConfig.AI_ANALYSIS_BASE_URL.isNotBlank()
-                        ) R.string.ai_analysis_ready else R.string.ai_analysis_not_configured
+                        if (providerReady) R.string.ai_analysis_ready
+                        else if (settings.provider == AnalysisSource.LOCAL) {
+                            R.string.ai_analysis_local_not_ready
+                        } else R.string.ai_analysis_not_configured
                     ),
                     button = stringResource(R.string.ai_analysis_start),
                     onClick = { viewModel.analyze(uid, displayName, focusPost) },
@@ -148,7 +153,7 @@ fun UserContentAnalysisPage(
                     CircularProgressIndicator()
                     Text(
                         stringResource(
-                            if (localModelState is LocalModelState.Ready) {
+                            if (settings.provider == AnalysisSource.LOCAL) {
                                 R.string.ai_analysis_running_local
                             } else {
                                 R.string.ai_analysis_collecting
@@ -349,6 +354,7 @@ private fun AnalysisSettingsDialog(
     var contextTokens by remember(settings) { mutableStateOf(settings.contextTokens) }
     var maxOutputTokens by remember(settings) { mutableStateOf(settings.maxOutputTokens) }
     var systemPrompt by remember(settings) { mutableStateOf(settings.systemPrompt) }
+    var provider by remember(settings) { mutableStateOf(settings.provider) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -358,6 +364,32 @@ private fun AnalysisSettingsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                Text(
+                    stringResource(R.string.ai_analysis_provider),
+                    style = MaterialTheme.typography.subtitle2,
+                    fontWeight = FontWeight.Medium,
+                )
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(
+                        AnalysisSource.REMOTE to R.string.ai_analysis_provider_remote,
+                        AnalysisSource.LOCAL to R.string.ai_analysis_provider_local,
+                    ).forEach { (option, label) ->
+                        if (provider == option) {
+                            Button(
+                                onClick = { provider = option },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(label)) }
+                        } else {
+                            OutlinedButton(
+                                onClick = { provider = option },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(label)) }
+                        }
+                    }
+                }
                 SettingSlider(
                     title = stringResource(R.string.ai_analysis_max_posts),
                     value = maxPosts,
@@ -423,6 +455,7 @@ private fun AnalysisSettingsDialog(
                 onClick = {
                     onSave(
                         settings.copy(
+                            provider = provider,
                             maxPosts = maxPosts,
                             maxCharsPerPost = maxCharsPerPost,
                             contextTokens = contextTokens,

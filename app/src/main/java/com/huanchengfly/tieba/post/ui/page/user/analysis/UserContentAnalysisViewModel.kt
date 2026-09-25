@@ -194,41 +194,45 @@ class UserContentAnalysisViewModel @Inject constructor(
                     posts = posts,
                     focusPostId = focusPost?.id,
                 )
-                if (LocalModelManager.isReady(context)) {
-                    val local = LocalContentAnalysisClient.analyze(
-                        context = context,
-                        request = request,
-                        settings = currentSettings,
-                    ) { update ->
-                        _state.value = UserContentAnalysisState.Streaming(
-                            text = update.text,
-                            outputTokens = update.outputTokens,
-                            elapsedSeconds = update.elapsedSeconds,
-                            tokensPerSecond = update.tokensPerSecond,
+                when (currentSettings.provider) {
+                    AnalysisSource.LOCAL -> {
+                        check(LocalModelManager.isReady(context)) { "本地模型尚未安装" }
+                        val local = LocalContentAnalysisClient.analyze(
+                            context = context,
+                            request = request,
+                            settings = currentSettings,
+                        ) { update ->
+                            _state.value = UserContentAnalysisState.Streaming(
+                                text = update.text,
+                                outputTokens = update.outputTokens,
+                                elapsedSeconds = update.elapsedSeconds,
+                                tokensPerSecond = update.tokensPerSecond,
+                            )
+                        }
+                        AnalysisResult(
+                            response = local.response,
+                            source = AnalysisSource.LOCAL,
+                            metrics = AnalysisMetrics(
+                                inputTokens = local.inputTokens,
+                                outputTokens = local.outputTokens,
+                                elapsedSeconds = local.elapsedSeconds,
+                                timeToFirstTokenSeconds = local.timeToFirstTokenSeconds,
+                                prefillTokensPerSecond = local.prefillTokensPerSecond,
+                                decodeTokensPerSecond = local.decodeTokensPerSecond,
+                                backend = local.backend,
+                            ),
                         )
                     }
-                    AnalysisResult(
-                        response = local.response,
-                        source = AnalysisSource.LOCAL,
-                        metrics = AnalysisMetrics(
-                            inputTokens = local.inputTokens,
-                            outputTokens = local.outputTokens,
-                            elapsedSeconds = local.elapsedSeconds,
-                            timeToFirstTokenSeconds = local.timeToFirstTokenSeconds,
-                            prefillTokensPerSecond = local.prefillTokensPerSecond,
-                            decodeTokensPerSecond = local.decodeTokensPerSecond,
-                            backend = local.backend,
-                        ),
-                    )
-                } else {
-                    val startedAt = System.nanoTime()
-                    AnalysisResult(
-                        response = ContentAnalysisClient.analyze(request),
-                        source = AnalysisSource.REMOTE,
-                        metrics = AnalysisMetrics(
-                            elapsedSeconds = (System.nanoTime() - startedAt) / 1_000_000_000.0,
-                        ),
-                    )
+                    AnalysisSource.REMOTE -> {
+                        val startedAt = System.nanoTime()
+                        AnalysisResult(
+                            response = ContentAnalysisClient.analyze(request),
+                            source = AnalysisSource.REMOTE,
+                            metrics = AnalysisMetrics(
+                                elapsedSeconds = (System.nanoTime() - startedAt) / 1_000_000_000.0,
+                            ),
+                        )
+                    }
                 }
             }.fold(
                 onSuccess = { analysis ->

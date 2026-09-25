@@ -3,6 +3,7 @@ package com.huanchengfly.tieba.post.ai
 import android.content.Context
 
 data class AiAnalysisSettings(
+    val provider: AnalysisSource = AnalysisSource.REMOTE,
     val maxPosts: Int = DEFAULT_MAX_POSTS,
     val maxCharsPerPost: Int = DEFAULT_MAX_CHARS_PER_POST,
     val contextTokens: Int = DEFAULT_CONTEXT_TOKENS,
@@ -11,6 +12,7 @@ data class AiAnalysisSettings(
 ) {
     val cacheKey: String
         get() = listOf(
+            provider.name,
             maxPosts,
             maxCharsPerPost,
             contextTokens,
@@ -30,6 +32,7 @@ data class AiAnalysisSettings(
 
 object AiAnalysisSettingsStore {
     private const val PREFERENCES_NAME = "ai_analysis_settings"
+    private const val KEY_PROVIDER = "provider"
     private const val KEY_MAX_POSTS = "max_posts"
     private const val KEY_MAX_CHARS_PER_POST = "max_chars_per_post"
     private const val KEY_CONTEXT_TOKENS = "context_tokens"
@@ -44,6 +47,10 @@ object AiAnalysisSettingsStore {
         ).takeIf { it in setOf(2048, 4096, 8192) }
             ?: AiAnalysisSettings.DEFAULT_CONTEXT_TOKENS
         return AiAnalysisSettings(
+            provider = preferences.getString(KEY_PROVIDER, AnalysisSource.REMOTE.name)
+                ?.let { value ->
+                    runCatching { AnalysisSource.valueOf(value) }.getOrDefault(AnalysisSource.REMOTE)
+                } ?: AnalysisSource.REMOTE,
             maxPosts = preferences.getInt(KEY_MAX_POSTS, AiAnalysisSettings.DEFAULT_MAX_POSTS)
                 .coerceIn(4, 40),
             maxCharsPerPost = preferences.getInt(
@@ -65,6 +72,7 @@ object AiAnalysisSettingsStore {
     fun save(context: Context, settings: AiAnalysisSettings) {
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             .edit()
+            .putString(KEY_PROVIDER, settings.provider.name)
             .putInt(KEY_MAX_POSTS, settings.maxPosts)
             .putInt(KEY_MAX_CHARS_PER_POST, settings.maxCharsPerPost)
             .putInt(KEY_CONTEXT_TOKENS, settings.contextTokens)
