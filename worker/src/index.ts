@@ -2,7 +2,6 @@ interface Env {
   AI: Ai;
   AI_PROVIDER: string;
   AI_MODEL: string;
-  APP_TOKEN?: string;
 }
 
 type AnalysisRequest = {
@@ -146,9 +145,6 @@ export default {
     }
     const contentLength = Number(request.headers.get("Content-Length") || 0);
     if (contentLength > 160_000) return json({ error: "payload_too_large" }, 413);
-    if (env.APP_TOKEN && request.headers.get("Authorization") !== `Bearer ${env.APP_TOKEN}`) {
-      return json({ error: "unauthorized" }, 401);
-    }
     if (env.AI_PROVIDER !== "workers-ai") {
       return json({ error: "unsupported_provider" }, 500);
     }

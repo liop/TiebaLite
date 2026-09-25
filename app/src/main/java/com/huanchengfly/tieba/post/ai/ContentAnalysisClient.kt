@@ -30,11 +30,6 @@ object ContentAnalysisClient {
                     json.encodeToString(payload)
                         .toRequestBody("application/json; charset=utf-8".toMediaType())
                 )
-                .apply {
-                    BuildConfig.AI_ANALYSIS_TOKEN.takeIf { it.isNotBlank() }?.let {
-                        header("Authorization", "Bearer $it")
-                    }
-                }
                 .build()
 
             client.newCall(request).execute().use { response ->

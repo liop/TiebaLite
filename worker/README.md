@@ -10,22 +10,19 @@ without changing the Android UI.
 npm ci
 npm run typecheck
 npm run build
-npx wrangler secret put APP_TOKEN
 npm run deploy
 ```
-
-`APP_TOKEN` must be stored with `wrangler secret put`; do not add it to `vars` or commit it.
 
 `npm run build` performs a local Wrangler dry run and writes the deployable bundle to `dist/`
 without changing the remote Worker.
 
-Then add these values to `~/.gradle/gradle.properties` (or pass them with `-P`):
+The Android app uses the production Worker URL by default. To override it, add this value to
+`~/.gradle/gradle.properties` (or pass it with `-P`):
 
 ```properties
 AI_ANALYSIS_BASE_URL=https://tiebalite-content-analysis.liop.xyz
-AI_ANALYSIS_TOKEN=<the same APP_TOKEN>
 ```
 
-`APP_TOKEN` only limits casual abuse; a token embedded in an APK is extractable. For a public release,
-replace it with user authentication plus server-side rate limiting. Never put a Cloudflare or Gemini
-API key in the Android project.
+The content-analysis endpoint is public and does not require an Authorization header. Keep provider
+credentials and model configuration in the Worker environment; never put Cloudflare or Gemini API
+keys in the Android project.
