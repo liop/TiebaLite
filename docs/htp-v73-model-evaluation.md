@@ -606,8 +606,8 @@ LiteRT-LM 包中仅修改了 `o_proj`、`down_proj` 权重，并未重新构造�
 目前只列出 Gemma 3 1B 的 SM8750、SM8650、SM8550 包；未列出 Gemma 4 E4B
 或 SM8635 制品。
 
-mini 当前可用空间约 8.7 GiB；查到的 Gemma 4 E4B Abliterated
-Safetensors 源权重约 16 GB，尚不具备在 mini 本地完整下载并重新导出的空间。
+当时 mini 可用空间约 8.7 GiB；Gemma 4 E4B Abliterated
+Safetensors 源权重约 16 GB。后续已清理空间、下载并校验源权重，见第 19 节。
 
 因此尚未获得可正确运行的 Gemma 4 E4B Abliterated / SM8635 / v73 /
 4 MiB VTCM QNN 模型。当前 Android 代码的
@@ -616,3 +616,30 @@ Safetensors 源权重约 16 GB，尚不具备在 mini 本地完整下载并重�
 若继续走 QNN，需从 abliterated 源权重重新导出目标支持的量化图，解决
 FP16/复合算子与 4 MiB VTCM 分块，再编译、真机逐 token 对照、接入 NPU
 runtime 后打包。
+
+## 19. Gemma 4 导出与临时构建机进度（2026-09-29）
+
+mini 已下载 `huihui-ai/Huihui-gemma-4-E4B-it-qat-q4_0-unquantized-abliterated`
+的 BF16 Safetensors（15,882,477,468 bytes；SHA256
+`a831cb7f2c2c2ff912af1034fc2293e3667ff4c2a531038d8fd691b6633f93e8`）。
+本机 `/private/tmp/gemma4-source/model.safetensors` 保有 SHA256 一致的备份；
+mini 原始权重副本后来因磁盘余量不足而删除，需要完整重导出时须先恢复。
+
+用 [单层构造脚本](../tools/npu/gemma4-qnn/make-one-layer.py)从原权重抽取一个
+`full_attention` 层，在 mini 的 x86 Linux 容器中验证导出工具链。
+LiteRT-Torch 0.9.4 默认将源权重加载为 FP32，整模在 mini 的 12 GiB VM 内存和
+交换空间中难以完成 MLIR 构建。[导出镜像](../tools/npu/gemma4-qnn/Dockerfile.exporter)
+改用 FP16 加载，并将单独导出的普通/per-layer embedding 表转为 FP32，绕过
+LiteRT 转换器不接受 FP16 `tfl.embedding_lookup` 的错误。单层
+`prefill_32`、`decode`、两个 embedding 图及 `.litertlm` 打包全部成功，耗时约
+3 分 21 秒。这个包仅用于验证转换流程，不是可发布的完整模型。
+
+随后用[两条提示的校准冒烟测试](../tools/npu/gemma4-qnn/calibrate-smoke.py)
+尝试静态量化，但 `CalibrationInterpreter` 在读取缺失的 mask 辅助图时得到
+`NoneType`，校准未开始；当前单层导出未启用 `split_cache`。需要补齐辅助图或
+修正校准加载方式，然后才能尝试 INT8 静态量化和 SM8635 QNN AOT。尚未生成
+QNN context，更没有完成 4 MiB VTCM 编译或手机 NPU 推理验证。
+
+曾尝试开通 Vultr 东京 64 GiB/480 GiB（约 $0.42/小时）及 32 GiB/240 GiB
+（约 $0.21/小时）的临时 Linux 构建机；两次 API 请求均被账户月费上限拒绝，
+没有创建实例或产生新实例费用。账户上限提高前，构建继续受 mini 的内存和磁盘限制。

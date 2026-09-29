@@ -1,0 +1,57 @@
+FROM python:3.11-slim
+
+# Keep PyTorch on its CPU wheel index so the export image does not pull CUDA.
+RUN python -m pip install --no-cache-dir torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
+RUN python -m pip install --no-cache-dir \
+    litert-torch==0.9.4 \
+    'transformers>=5.0,<6.0'
+
+# The upstream loader always expands this BF16 checkpoint to FP32 before
+# export. On a 16 GiB mini that exceeds RAM plus practical swap capacity.
+# Keep the source weights at FP16 while loading; later conversion and QNN
+# correctness must still be checked before this can be used for release.
+RUN python - <<'PY'
+from pathlib import Path
+
+path = Path('/usr/local/lib/python3.11/site-packages/litert_torch/generative/export_hf/core/export_lib.py')
+source = path.read_text()
+old = '''model = auto_model_cls.from_pretrained(
+          model_path,
+          config=config,
+          torch_dtype=torch.float32,
+          trust_remote_code=trust_remote_code,
+      )'''
+new = '''model = auto_model_cls.from_pretrained(
+          model_path,
+          config=config,
+          torch_dtype=torch.float16,
+          low_cpu_mem_usage=True,
+          trust_remote_code=trust_remote_code,
+      )'''
+assert source.count(old) == 1, 'LiteRT Torch loader changed; review this patch'
+source = source.replace(old, new)
+
+# LiteRT currently rejects tfl.embedding_lookup with FP16 table values.
+# Export the separate tokenizer embedder in FP32; the transformer remains FP16.
+old = '''embedder_module = external_emb_module.LiteRTExportableModuleForEmbedder(
+        model.get_input_embeddings()
+    )'''
+new = '''embedder_module = external_emb_module.LiteRTExportableModuleForEmbedder(
+        model.get_input_embeddings().float()
+    )'''
+assert source.count(old) == 1, 'LiteRT Torch embedder path changed; review this patch'
+source = source.replace(old, new)
+
+# Gemma 4 also exports a per-layer token table as a separate graph. Its FP16
+# embedding_lookup hits the same converter limitation as the main embedder.
+old = '''  embedder_module = exportable_module_cls(model)
+  converter = converter_utils.Converter()'''
+new = '''  if name == 'per_layer_embedder':
+    model.model.language_model.embed_tokens_per_layer.float()
+  embedder_module = exportable_module_cls(model)
+  converter = converter_utils.Converter()'''
+assert source.count(old) == 1, 'LiteRT Torch additional model path changed; review this patch'
+path.write_text(source.replace(old, new))
+PY
+
+ENV HF_HUB_OFFLINE=1
