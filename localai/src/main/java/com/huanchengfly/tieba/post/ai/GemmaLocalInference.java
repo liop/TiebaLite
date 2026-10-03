@@ -139,6 +139,11 @@ public final class GemmaLocalInference {
             StreamCallback streamCallback
     ) {
         initialize(modelPath, maxNumTokens, cacheDir);
+        // Native initialization may finish after the owning coroutine has been cancelled.
+        // Do not start an expensive prompt when runInterruptible has interrupted this thread.
+        if (Thread.currentThread().isInterrupted()) {
+            throw new IllegalStateException("本地生成已停止", new InterruptedException());
+        }
         ConversationConfig defaults = new ConversationConfig(
                 Contents.Companion.of(systemInstruction)
         );

@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -97,6 +98,10 @@ fun UserContentAnalysisPage(
         )
     } else {
         null
+    }
+    DisposableEffect(viewModel) {
+        viewModel.refreshLocalModelStatus()
+        onDispose { viewModel.stopPageWork() }
     }
     LaunchedEffect(uid, focusPostId, settings.provider, providerReady) {
         if (providerReady) {

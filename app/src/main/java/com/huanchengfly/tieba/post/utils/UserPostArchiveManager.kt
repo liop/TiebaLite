@@ -4,6 +4,8 @@ import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.protos.PostInfoList
 import com.huanchengfly.tieba.post.api.models.protos.abstractText
 import com.huanchengfly.tieba.post.models.database.UserPostArchive
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -14,6 +16,12 @@ import java.io.OutputStream
 /** 同步个人主页的主题和回复到本地，并导出为便于分析的 JSON。 */
 object UserPostArchiveManager {
     private val json = Json { prettyPrint = true; encodeDefaults = true }
+    private val archiveIndex by lazy {
+        LitePal.getDatabase().execSQL(
+            "CREATE INDEX IF NOT EXISTS user_post_archive_lookup " +
+                "ON userpostarchive (uid, postId, isThread)"
+        )
+    }
 
     @Serializable
     private data class ExportFile(
@@ -38,18 +46,19 @@ object UserPostArchiveManager {
         val updatedAt: Long,
     )
 
-    suspend fun syncAndExport(uid: Long, output: OutputStream): Int {
+    suspend fun syncAndExport(uid: Long, output: OutputStream): Int = withContext(Dispatchers.IO) {
         sync(uid)
         val records = all(uid).map {
             ExportRecord(it.threadId, it.postId, if (it.isThread) "thread" else "reply", it.forumId, it.forumName, it.title, it.content, it.createTime, it.isDeleted, it.archivedAt, it.updatedAt)
         }
         output.bufferedWriter().use { it.write(json.encodeToString(ExportFile(exportedAt = System.currentTimeMillis(), uid = uid, records = records))) }
-        return records.size
+        records.size
     }
 
-    fun archive(uid: Long, isThread: Boolean, posts: List<PostInfoList>) {
-        posts.flatMap { it.toArchiveRecords(uid, isThread) }.forEach(::saveOrUpdate)
-    }
+    suspend fun archive(uid: Long, isThread: Boolean, posts: List<PostInfoList>) =
+        withContext(Dispatchers.IO) {
+            posts.flatMap { it.toArchiveRecords(uid, isThread) }.forEach(::saveOrUpdate)
+        }
 
     private suspend fun sync(uid: Long) {
         syncType(uid, true)
@@ -89,8 +98,11 @@ object UserPostArchiveManager {
     )
 
     private fun saveOrUpdate(archive: UserPostArchive) {
-        val existing = LitePal.where("uid = ?", archive.uid.toString()).find(UserPostArchive::class.java)
-            .firstOrNull { it.postId == archive.postId && it.isThread == archive.isThread }
+        archiveIndex
+        val existing = LitePal.where(
+            "uid = ? AND postId = ? AND isThread = ?",
+            archive.uid.toString(), archive.postId.toString(), if (archive.isThread) "1" else "0",
+        ).findFirst(UserPostArchive::class.java)
         if (existing == null) archive.save()
         else archive.copy(
             userName = archive.userName.ifEmpty { existing.userName }, forumName = archive.forumName.ifEmpty { existing.forumName },
@@ -105,8 +117,13 @@ object UserPostArchiveManager {
             .forEach { it.copy(isDeleted = true, updatedAt = System.currentTimeMillis()).update(it.id) }
     }
 
-    fun deleted(uid: Long, isThread: Boolean): List<UserPostArchive> =
-        all(uid).filter { it.isThread == isThread && it.isDeleted }
+    suspend fun deleted(uid: Long, isThread: Boolean): List<UserPostArchive> =
+        withContext(Dispatchers.IO) {
+            LitePal.where(
+                "uid = ? AND isThread = ? AND isDeleted = ?",
+                uid.toString(), if (isThread) "1" else "0", "1",
+            ).order("createTime DESC, postId DESC").find(UserPostArchive::class.java)
+        }
 
     private fun all(uid: Long) = LitePal.where("uid = ?", uid.toString()).find(UserPostArchive::class.java)
         .sortedWith(compareByDescending<UserPostArchive> { it.createTime }.thenByDescending { it.postId })
