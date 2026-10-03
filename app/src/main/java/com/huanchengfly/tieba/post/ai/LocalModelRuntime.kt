@@ -16,8 +16,11 @@ import com.huanchengfly.tieba.post.MainActivityV2
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.dataStore
 import com.huanchengfly.tieba.post.pendingIntentFlagImmutable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -43,42 +46,62 @@ object LocalModelRuntime {
     fun preloadOnAppStart(context: Context) {
         val applicationContext = context.applicationContext
         scope.launch {
-            val enabled = applicationContext.dataStore.data.first()[preloadPreferenceKey] ?: false
+            val enabled = shouldKeepEngine(applicationContext)
             if (enabled && preload(applicationContext)) {
                 notifyPreloadComplete(applicationContext)
             }
         }
     }
 
-    suspend fun preload(context: Context): Boolean = mutex.withLock {
-        if (GemmaLocalInference.isInitialized()) {
-            _state.value = LocalModelRuntimeState.Ready(GemmaLocalInference.getBackendName())
-            return@withLock true
-        }
-        if (!LocalModelManager.isReady(context)) {
-            _state.value = LocalModelRuntimeState.Failed("本地模型尚未安装")
-            return@withLock false
-        }
+    suspend fun preload(context: Context): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            if (GemmaLocalInference.isInitialized()) {
+                _state.value = LocalModelRuntimeState.Ready(GemmaLocalInference.getBackendName())
+                return@withLock true
+            }
+            if (!LocalModelManager.isReady(context)) {
+                _state.value = LocalModelRuntimeState.Failed("本地模型尚未安装")
+                return@withLock false
+            }
 
-        _state.value = LocalModelRuntimeState.Loading
-        runCatching {
-            val model = requireNotNull(LocalModelManager.modelFile(context))
-            val settings = AiAnalysisSettingsStore.load(context)
-            withContext(Dispatchers.IO) {
+            _state.value = LocalModelRuntimeState.Loading
+            runCatching {
+                val model = requireNotNull(LocalModelManager.modelFile(context))
+                val settings = AiAnalysisSettingsStore.load(context)
                 GemmaLocalInference.initialize(
                     model.absolutePath,
                     settings.contextTokens,
                     LocalModelManager.cacheDir(context).absolutePath,
                 )
+            }.onSuccess {
+                val backend = GemmaLocalInference.getBackendName()
+                Log.i(TAG, "Gemma 4 E4B engine is ready with backend=$backend")
+                _state.value = LocalModelRuntimeState.Ready(backend)
+            }.onFailure {
+                if (it is CancellationException) throw it
+                Log.e(TAG, "Failed to preload Gemma 4 E4B GPU engine", it)
+                _state.value = LocalModelRuntimeState.Failed(it.message ?: "模型加载失败")
+            }.isSuccess
+        }
+    }
+
+    private suspend fun shouldKeepEngine(context: Context): Boolean =
+        (context.dataStore.data.first()[preloadPreferenceKey] ?: false) &&
+            AiAnalysisSettingsStore.load(context).provider == AnalysisSource.LOCAL
+
+    // Share the lock with preload/release so disabling preload cannot close an active engine.
+    // Interrupt the blocking JNI wait on cancellation, then release after its conversation closes.
+    suspend fun <T> withEngine(context: Context, block: () -> T): T = mutex.withLock {
+        try {
+            runInterruptible(Dispatchers.IO) { block() }
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                if (!shouldKeepEngine(context)) {
+                    GemmaLocalInference.closeEngine()
+                    _state.value = LocalModelRuntimeState.Idle
+                }
             }
-        }.onSuccess {
-            val backend = GemmaLocalInference.getBackendName()
-            Log.i(TAG, "Gemma 4 E4B engine is ready with backend=$backend")
-            _state.value = LocalModelRuntimeState.Ready(backend)
-        }.onFailure {
-            Log.e(TAG, "Failed to preload Gemma 4 E4B GPU engine", it)
-            _state.value = LocalModelRuntimeState.Failed(it.message ?: "模型加载失败")
-        }.isSuccess
+        }
     }
 
     private fun notifyPreloadComplete(context: Context) {

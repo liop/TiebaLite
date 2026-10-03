@@ -29,9 +29,7 @@ object LocalModelManager {
         .getExternalFilesDir("models")
         ?.resolve(MODEL_FILE_NAME)
 
-    fun isReady(context: Context): Boolean = isSupported() && modelFile(context)?.let { file ->
-        file.isFile && file.length() >= 1_000_000_000L
-    } == true
+    fun isReady(context: Context): Boolean = status(context) is LocalModelState.Ready
 
     fun cacheDir(context: Context): File =
         File(context.cacheDir, "litertlm").apply { mkdirs() }
@@ -82,16 +80,11 @@ object LocalModelManager {
     fun status(context: Context): LocalModelState {
         if (!isSupported()) return LocalModelState.Unsupported
         val file = modelFile(context)
-        if (file != null && file.isFile && file.length() >= 1_000_000_000L) {
-            cleanupLegacyModel(context)
-            return LocalModelState.Ready(file.length())
-        }
-
         val id = preferences(context).getLong(DOWNLOAD_ID, -1L)
-        if (id < 0L) return LocalModelState.NotInstalled
+        if (id < 0L) return installedState(file)
         val manager = context.getSystemService(DownloadManager::class.java)
         manager.query(DownloadManager.Query().setFilterById(id))?.use { cursor ->
-            if (!cursor.moveToFirst()) return LocalModelState.NotInstalled
+            if (!cursor.moveToFirst()) return installedState(file)
             val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
             val downloaded = cursor.getLong(
                 cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
@@ -104,15 +97,22 @@ object LocalModelManager {
                 DownloadManager.STATUS_RUNNING,
                 DownloadManager.STATUS_PAUSED -> LocalModelState.Downloading(downloaded, total)
                 DownloadManager.STATUS_SUCCESSFUL -> {
-                    if (isReady(context)) LocalModelState.Ready(file?.length() ?: 0L)
-                    else LocalModelState.Failed("下载完成，但模型文件无效")
+                    installedState(file).takeIf { it is LocalModelState.Ready }
+                        ?: LocalModelState.Failed("下载完成，但模型文件无效")
                 }
                 DownloadManager.STATUS_FAILED -> LocalModelState.Failed("模型下载失败，请重试")
                 else -> LocalModelState.NotInstalled
             }
         }
-        return LocalModelState.NotInstalled
+        return installedState(file)
     }
+
+    private fun installedState(file: File?): LocalModelState =
+        if (file != null && file.isFile && file.length() >= 1_000_000_000L) {
+            LocalModelState.Ready(file.length())
+        } else {
+            LocalModelState.NotInstalled
+        }
 
     private fun preferences(context: Context) =
         context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)

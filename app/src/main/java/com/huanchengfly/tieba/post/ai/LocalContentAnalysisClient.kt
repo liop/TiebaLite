@@ -25,22 +25,24 @@ object LocalContentAnalysisClient {
 
             val compactRequest = compactRequest(request, settings)
             val prompt = buildPrompt(json.encodeToString(compactRequest))
-            val result = GemmaLocalInference.generateStreaming(
-                model.absolutePath,
-                LocalModelManager.cacheDir(context).absolutePath,
-                settings.systemPrompt,
-                prompt,
-                settings.contextTokens,
-                settings.maxOutputTokens,
-            ) { text, outputTokens, elapsedSeconds, tokensPerSecond ->
-                onStream(
-                    LocalStreamUpdate(
-                        text = text,
-                        outputTokens = outputTokens,
-                        elapsedSeconds = elapsedSeconds,
-                        tokensPerSecond = tokensPerSecond,
+            val result = LocalModelRuntime.withEngine(context) {
+                GemmaLocalInference.generateStreaming(
+                    model.absolutePath,
+                    LocalModelManager.cacheDir(context).absolutePath,
+                    settings.systemPrompt,
+                    prompt,
+                    settings.contextTokens,
+                    settings.maxOutputTokens,
+                ) { text, outputTokens, elapsedSeconds, tokensPerSecond ->
+                    onStream(
+                        LocalStreamUpdate(
+                            text = text,
+                            outputTokens = outputTokens,
+                            elapsedSeconds = elapsedSeconds,
+                            tokensPerSecond = tokensPerSecond,
+                        )
                     )
-                )
+                }
             }
             Log.i(
                 "LocalContentAnalysis",

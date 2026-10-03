@@ -14,6 +14,7 @@ import com.huanchengfly.tieba.post.ai.ContentAnalysisCache
 import com.huanchengfly.tieba.post.ai.ContentAnalysisRequest
 import com.huanchengfly.tieba.post.ai.ContentAnalysisResponse
 import com.huanchengfly.tieba.post.ai.LocalContentAnalysisClient
+import com.huanchengfly.tieba.post.ai.LocalModelRuntime
 import com.huanchengfly.tieba.post.ai.LocalModelManager
 import com.huanchengfly.tieba.post.ai.LocalModelState
 import com.huanchengfly.tieba.post.ai.PublicPostSnapshot
@@ -22,6 +23,8 @@ import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.protos.abstractText
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -45,35 +48,57 @@ class UserContentAnalysisViewModel @Inject constructor(
 
     private val _state = MutableStateFlow<UserContentAnalysisState>(UserContentAnalysisState.Idle)
     val state: StateFlow<UserContentAnalysisState> = _state.asStateFlow()
-    private val _localModelState = MutableStateFlow<LocalModelState>(LocalModelManager.status(context))
+    private val _localModelState = MutableStateFlow<LocalModelState>(LocalModelState.NotInstalled)
     val localModelState: StateFlow<LocalModelState> = _localModelState.asStateFlow()
     private val _settings = MutableStateFlow(AiAnalysisSettingsStore.load(context))
     val settings: StateFlow<AiAnalysisSettings> = _settings.asStateFlow()
     private var analysisJob: Job? = null
 
+    private var modelStatusJob: Job? = null
+
     init {
-        viewModelScope.launch {
-            while (isActive) {
-                _localModelState.value = LocalModelManager.status(context)
-                delay(if (_localModelState.value is LocalModelState.Downloading) 1_000L else 5_000L)
-            }
+        refreshLocalModelStatus()
+    }
+
+    // Only downloads need polling. Never query DownloadManager or the filesystem on Main.
+    fun refreshLocalModelStatus() {
+        modelStatusJob?.cancel()
+        modelStatusJob = viewModelScope.launch {
+            do {
+                _localModelState.value = withContext(Dispatchers.IO) {
+                    LocalModelManager.status(context)
+                }
+                if (_localModelState.value !is LocalModelState.Downloading) break
+                delay(1_000L)
+            } while (isActive)
         }
     }
 
     fun downloadLocalModel() {
-        _localModelState.value = runCatching {
-            LocalModelManager.enqueueDownload(context)
-            LocalModelManager.status(context)
-        }.getOrElse { LocalModelState.Failed(it.message ?: "无法开始下载") }
+        modelStatusJob?.cancel()
+        viewModelScope.launch {
+            _localModelState.value = runCatching {
+                withContext(Dispatchers.IO) { LocalModelManager.enqueueDownload(context) }
+                refreshLocalModelStatus()
+                LocalModelState.Downloading(0, LocalModelManager.MODEL_SIZE_BYTES)
+            }.getOrElse {
+                if (it is CancellationException) throw it
+                LocalModelState.Failed(it.message ?: "无法开始下载")
+            }
+        }
     }
 
     fun importLocalModel(uri: Uri) {
+        modelStatusJob?.cancel()
         viewModelScope.launch {
             _localModelState.value = LocalModelState.Importing
             _localModelState.value = runCatching {
                 LocalModelManager.importModel(context, uri)
-                LocalModelManager.status(context)
-            }.getOrElse { LocalModelState.Failed(it.message ?: "模型导入失败") }
+                withContext(Dispatchers.IO) { LocalModelManager.status(context) }
+            }.getOrElse {
+                if (it is CancellationException) throw it
+                LocalModelState.Failed(it.message ?: "模型导入失败")
+            }
         }
     }
 
@@ -97,13 +122,20 @@ class UserContentAnalysisViewModel @Inject constructor(
         )
         AiAnalysisSettingsStore.save(context, normalized)
         _settings.value = normalized
+        if (normalized.provider == AnalysisSource.REMOTE) {
+            viewModelScope.launch { LocalModelRuntime.release() }
+        }
         if (_state.value !is UserContentAnalysisState.Idle) {
             _state.value = UserContentAnalysisState.Idle
         }
     }
 
+    fun stopPageWork() {
+        modelStatusJob?.cancel()
+        stopAnalysis()
+    }
+
     fun stopAnalysis() {
-        LocalContentAnalysisClient.cancel()
         analysisJob?.cancel()
         analysisJob = null
         _state.value = UserContentAnalysisState.Idle
@@ -119,6 +151,7 @@ class UserContentAnalysisViewModel @Inject constructor(
             _state.value is UserContentAnalysisState.Streaming
         ) return
         analysisJob = viewModelScope.launch {
+            val ownerJob = coroutineContext[Job]
             val currentSettings = _settings.value
             if (!forceRefresh) {
                 ContentAnalysisCache.get(uid, focusPost, currentSettings.cacheKey)?.let { cached ->
@@ -202,7 +235,7 @@ class UserContentAnalysisViewModel @Inject constructor(
                             request = request,
                             settings = currentSettings,
                         ) { update ->
-                            _state.value = UserContentAnalysisState.Streaming(
+                            if (ownerJob?.isActive == true) _state.value = UserContentAnalysisState.Streaming(
                                 text = update.text,
                                 outputTokens = update.outputTokens,
                                 elapsedSeconds = update.elapsedSeconds,
@@ -251,9 +284,7 @@ class UserContentAnalysisViewModel @Inject constructor(
                     )
                 },
                 onFailure = { exception ->
-                    if (exception is CancellationException) {
-                        return@fold UserContentAnalysisState.Idle
-                    }
+                    if (exception is CancellationException) throw exception
                     Log.e(TAG, "Content analysis failed", exception)
                     val causes = generateSequence(exception) { it.cause }.toList()
                     val rootCause = causes.last()
